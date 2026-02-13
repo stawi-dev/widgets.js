@@ -1,0 +1,4 @@
+packages:
+  - "packages/*"
+  - "shared/utils"
+  - "shared/auth-runtime"
