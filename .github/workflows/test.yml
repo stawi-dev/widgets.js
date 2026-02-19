@@ -1,0 +1,82 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: pnpm turbo run test:coverage
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+      # Collect coverage summaries from every package into a single
+      # markdown comment. Works with any number of packages — each
+      # package that produced a coverage/coverage-summary.json is
+      # included automatically.
+      - name: Generate coverage report
+        id: coverage
+        if: always()
+        run: |
+          report=""
+          for summary in $(find . -path '*/coverage/coverage-summary.json' -not -path '*/node_modules/*' | sort); do
+            pkg_dir=$(dirname "$(dirname "$summary")")
+            pkg_name=$(jq -r '.name // empty' "$pkg_dir/package.json" 2>/dev/null || basename "$pkg_dir")
+
+            stmts=$(jq '.total.statements.pct' "$summary")
+            branches=$(jq '.total.branches.pct' "$summary")
+            funcs=$(jq '.total.functions.pct' "$summary")
+            lines=$(jq '.total.lines.pct' "$summary")
+
+            report+="| \`$pkg_name\` | ${stmts}% | ${branches}% | ${funcs}% | ${lines}% |"$'\n'
+          done
+
+          if [ -z "$report" ]; then
+            echo "body=No coverage data found." >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo 'body<<COVERAGE_EOF'
+              echo "### Test Coverage"
+              echo ""
+              echo "| Package | Statements | Branches | Functions | Lines |"
+              echo "|---------|-----------|----------|-----------|-------|"
+              echo -n "$report"
+              echo ""
+              echo "_Updated for ${{ github.sha }}_"
+              echo 'COVERAGE_EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request' && steps.coverage.outputs.body != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          message: ${{ steps.coverage.outputs.body }}

@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsup",
     "lint": "eslint src/",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
     "idb-keyval": "^6.2.1"

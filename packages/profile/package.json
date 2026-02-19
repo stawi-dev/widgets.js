@@ -20,6 +20,7 @@
     "build": "tsup",
     "lint": "eslint src/",
     "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
     "playground": "vite serve playground --config playground/vite.config.ts"
   },
   "dependencies": {
