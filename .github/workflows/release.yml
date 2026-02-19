@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*"
 
 concurrency:
   group: ${{ github.workflow }}
@@ -10,7 +11,6 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   release:
@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history so Changesets can diff and Turbo can filter.
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
@@ -31,42 +30,29 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Build every package that changed since the last release commit.
-      # Turbo's remote cache (when TURBO_TOKEN is set) means packages
-      # already built in CI are instant cache hits here — critical when
-      # the repo contains hundreds of packages.
-      - name: Build changed packages
+      - name: Run tests
+        run: pnpm turbo run test
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+      - name: Build all packages
         run: pnpm turbo run build
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
-      # Changesets action does two things:
-      # 1. If .changeset/ has pending changesets → opens a "Version Packages"
-      #    PR that bumps versions and updates CHANGELOGs.
-      # 2. If that PR was just merged (no pending changesets, but versions
-      #    were bumped) → runs `pnpm release` which calls `changeset publish`
-      #    to publish only the packages whose versions actually changed.
-      #
-      # `changeset publish` is O(changed) not O(all): it compares each
-      # package's local version against the npm registry and only publishes
-      # mismatches, so this scales to thousands of packages.
-      - name: Create Release Pull Request or Publish
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          publish: pnpm release
-          version: pnpm version-packages
-          title: "chore: version packages"
-          commit: "chore: version packages"
+      # changeset publish compares each package's local version against
+      # the npm registry and only publishes packages with version bumps.
+      # This is O(changed) not O(all), so it scales to thousands of
+      # packages regardless of how many exist in the monorepo.
+      - name: Publish to npm
+        run: pnpm release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Tag published packages in the GitHub release for discoverability.
-      - name: Log published packages
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          echo "Published packages:"
-          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq '.'
+      - name: Create GitHub Release
+        run: gh release create "${{ github.ref_name }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
