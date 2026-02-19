@@ -42,17 +42,42 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
-      # changeset publish compares each package's local version against
-      # the npm registry and only publishes packages with version bumps.
-      # This is O(changed) not O(all), so it scales to thousands of
-      # packages regardless of how many exist in the monorepo.
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # Set each publishable package's version to match the git tag
+      # so npm publish uses the tag version, not the static package.json value.
+      - name: Stamp package versions from tag
+        run: |
+          for pkg in packages/*/package.json shared/*/package.json; do
+            [ -f "$pkg" ] || continue
+            private=$(node -p "require('./$pkg').private || false")
+            [ "$private" = "true" ] && continue
+            pnpm --filter "$(node -p "require('./$pkg').name")" exec \
+              npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+          done
+
       - name: Publish to npm
-        run: pnpm release
+        run: |
+          for pkg in packages/*/package.json shared/*/package.json; do
+            [ -f "$pkg" ] || continue
+            private=$(node -p "require('./$pkg').private || false")
+            [ "$private" = "true" ] && continue
+            name=$(node -p "require('./$pkg').name")
+            dir=$(dirname "$pkg")
+            pnpm --filter "$name" publish --access public --no-git-checks
+          done
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        run: gh release create "${{ github.ref_name }}" --generate-notes
+        run: |
+          if gh release view "${{ github.ref_name }}" &>/dev/null; then
+            echo "Release ${{ github.ref_name }} already exists, skipping."
+          else
+            gh release create "${{ github.ref_name }}" --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
