@@ -1,5 +1,5 @@
 {
-  "name": "@antinvestor/auth-runtime",
+  "name": "@stawi/auth-runtime",
   "version": "0.0.0",
   "private": true,
   "sideEffects": false,

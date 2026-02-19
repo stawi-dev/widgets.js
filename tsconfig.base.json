@@ -17,7 +17,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@antinvestor/*": ["packages/*/src", "shared/*/src"]
+      "@stawi/*": ["packages/*/src", "shared/*/src"]
     }
   },
   "exclude": ["node_modules", "dist"]

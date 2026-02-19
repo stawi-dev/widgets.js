@@ -48,9 +48,9 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(jsdom@25.0.1)
 
-  packages/profile-ui:
+  packages/profile:
     dependencies:
-      '@antinvestor/auth-runtime':
+      '@stawi/auth-runtime':
         specifier: workspace:*
         version: link:../../shared/auth-runtime
     devDependencies:

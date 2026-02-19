@@ -11,7 +11,7 @@ import {
   type AuthState,
   type AuthRuntime,
   ApiClient,
-} from "@antinvestor/auth-runtime";
+} from "@stawi/auth-runtime";
 
 export interface AuthContextValue {
   authState: AuthState;

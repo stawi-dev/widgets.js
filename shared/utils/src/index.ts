@@ -1,1 +1,1 @@
-// Shared utilities for @antinvestor widgets
+// Shared utilities for @stawi widgets

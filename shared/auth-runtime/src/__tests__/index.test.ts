@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { getAuthRuntime } from "../index.js";
 
-const RUNTIME_KEY = Symbol.for("@antinvestor/auth-runtime");
+const RUNTIME_KEY = Symbol.for("@stawi/auth-runtime");
 
 function clearSingleton() {
   const g = globalThis as Record<symbol, unknown>;

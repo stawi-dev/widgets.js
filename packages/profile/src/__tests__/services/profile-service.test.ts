@@ -10,7 +10,7 @@ import {
 import { ContactType } from "../../types.js";
 
 const mockFetch = vi.fn();
-const api = { fetch: mockFetch, upload: vi.fn() } as unknown as import("@antinvestor/auth-runtime").ApiClient;
+const api = { fetch: mockFetch, upload: vi.fn() } as unknown as import("@stawi/auth-runtime").ApiClient;
 
 const SVC = "/profile.v1.ProfileService";
 

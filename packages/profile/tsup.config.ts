@@ -10,9 +10,9 @@ export default defineConfig([
     external: ["react", "react-dom", "react/jsx-runtime"],
   },
   {
-    entry: { "profile-ui.iife": "src/bootstrap.ts" },
+    entry: { "profile.iife": "src/bootstrap.ts" },
     format: ["iife"],
-    globalName: "AntinvestorProfileUI",
+    globalName: "StawiProfile",
     noExternal: [/.*/],
     minify: true,
     sourcemap: false,

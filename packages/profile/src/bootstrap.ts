@@ -7,7 +7,7 @@ function autoMount() {
   const installationId = script.getAttribute("data-installation-id");
   if (!installationId) {
     console.error(
-      "[profile-ui] Missing data-installation-id attribute on script tag.",
+      "[profile] Missing data-installation-id attribute on script tag.",
     );
     return;
   }

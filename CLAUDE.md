@@ -1,4 +1,4 @@
-# AI Coding Instructions — @antinvestor/aiwidgets
+# AI Coding Instructions — @stawi/aiwidgets
 
 ## Critical Rule: One Widget at a Time
 
@@ -12,7 +12,7 @@ If asked to work on multiple widgets, complete one fully before starting the nex
 aiwidgets/
 ├── packages/<widget>/       # Independent widget packages (one per widget)
 │   ├── src/index.tsx        # Entry point
-│   ├── package.json         # @antinvestor/<widget>, own version, own deps
+│   ├── package.json         # @stawi/<widget>, own version, own deps
 │   ├── tsconfig.json        # Extends ../../tsconfig.base.json
 │   └── tsup.config.ts       # Builds ESM + CJS + DTS via tsup
 ├── shared/utils/            # Shared internal utilities (private, not published)
@@ -43,7 +43,7 @@ packages/<widget-name>/
 ```
 
 **package.json** must include:
-- `"name": "@antinvestor/<widget-name>"`
+- `"name": "@stawi/<widget-name>"`
 - `"version": "0.0.1"` (starting version)
 - `"sideEffects": false`
 - `"exports"` with `types` first, then `import`, then `require`
@@ -57,9 +57,9 @@ packages/<widget-name>/
 ### Modifying an existing widget
 1. Read the widget's `package.json` and source files first to understand its current state.
 2. Keep changes scoped to that single widget's directory.
-3. Run `pnpm --filter @antinvestor/<widget-name> build` to verify the build.
-4. Run `pnpm --filter @antinvestor/<widget-name> test` to verify tests pass.
-5. Run `pnpm --filter @antinvestor/<widget-name> lint` to verify lint passes.
+3. Run `pnpm --filter @stawi/<widget-name> build` to verify the build.
+4. Run `pnpm --filter @stawi/<widget-name> test` to verify tests pass.
+5. Run `pnpm --filter @stawi/<widget-name> lint` to verify lint passes.
 
 ## Tech Stack (do not deviate)
 

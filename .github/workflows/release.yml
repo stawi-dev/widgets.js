@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so Changesets can diff and Turbo can filter.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -28,14 +31,42 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      # Build every package that changed since the last release commit.
+      # Turbo's remote cache (when TURBO_TOKEN is set) means packages
+      # already built in CI are instant cache hits here — critical when
+      # the repo contains hundreds of packages.
+      - name: Build changed packages
+        run: pnpm turbo run build
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
+      # Changesets action does two things:
+      # 1. If .changeset/ has pending changesets → opens a "Version Packages"
+      #    PR that bumps versions and updates CHANGELOGs.
+      # 2. If that PR was just merged (no pending changesets, but versions
+      #    were bumped) → runs `pnpm release` which calls `changeset publish`
+      #    to publish only the packages whose versions actually changed.
+      #
+      # `changeset publish` is O(changed) not O(all): it compares each
+      # package's local version against the npm registry and only publishes
+      # mismatches, so this scales to thousands of packages.
       - name: Create Release Pull Request or Publish
+        id: changesets
         uses: changesets/action@v1
         with:
           publish: pnpm release
           version: pnpm version-packages
+          title: "chore: version packages"
+          commit: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Tag published packages in the GitHub release for discoverability.
+      - name: Log published packages
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "Published packages:"
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq '.'

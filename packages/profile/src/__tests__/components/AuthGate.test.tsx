@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AuthGate } from "../../components/AuthGate.js";
 import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
-import type { AuthState } from "@antinvestor/auth-runtime";
+import type { AuthState } from "@stawi/auth-runtime";
 
 function fakeJwt(sub: string): string {
   const header = btoa(JSON.stringify({ alg: "none" }));

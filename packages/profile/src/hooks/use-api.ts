@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAuth } from "./use-auth.js";
-import type { ApiClient } from "@antinvestor/auth-runtime";
+import type { ApiClient } from "@stawi/auth-runtime";
 
 export function useApi(): ApiClient {
   const { runtime } = useAuth();

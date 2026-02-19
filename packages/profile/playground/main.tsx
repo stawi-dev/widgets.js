@@ -7,7 +7,7 @@ import { AuthGate } from "../src/components/AuthGate.js";
 import { widgetStyles } from "../src/styles/styles.js";
 import { profileWithPicture, profileWithoutPicture } from "./mock-data.js";
 import type { ProfileData, ProfileState } from "../src/types.js";
-import type { AuthState } from "@antinvestor/auth-runtime";
+import type { AuthState } from "@stawi/auth-runtime";
 
 // Replace :host selectors with .aiw-root for regular DOM rendering
 const playgroundCss = widgetStyles

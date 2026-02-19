@@ -1,7 +1,11 @@
 {
-  "name": "@antinvestor/profile-ui",
+  "name": "@stawi/profile",
   "version": "0.0.1",
   "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -19,7 +23,7 @@
     "playground": "vite serve playground --config playground/vite.config.ts"
   },
   "dependencies": {
-    "@antinvestor/auth-runtime": "workspace:*"
+    "@stawi/auth-runtime": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18 || ^19",

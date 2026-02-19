@@ -28,7 +28,7 @@ export { AuthError } from "./errors.js";
 export { ApiClient } from "./api-client.js";
 export { decodeJwtPayload, extractRolesFromToken } from "./jwt.js";
 
-const RUNTIME_KEY = Symbol.for("@antinvestor/auth-runtime");
+const RUNTIME_KEY = Symbol.for("@stawi/auth-runtime");
 
 class AuthRuntimeImpl implements AuthRuntime {
   private state: AuthState = "initializing";

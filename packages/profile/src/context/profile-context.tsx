@@ -6,7 +6,7 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import { decodeJwtPayload } from "@antinvestor/auth-runtime";
+import { decodeJwtPayload } from "@stawi/auth-runtime";
 import type {
   ProfileData,
   ProfileState,

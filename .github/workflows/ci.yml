@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -23,6 +25,24 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
+      # Only lint, test, and build packages affected by this PR.
+      # Turbo's filter compares HEAD against the merge base with main,
+      # resolving the full dependency graph so downstream consumers are
+      # also rebuilt. With hundreds of packages this avoids redundant work.
+      - name: Lint affected packages
+        run: pnpm turbo run lint --filter='...[origin/main...HEAD]'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+      - name: Test affected packages
+        run: pnpm turbo run test --filter='...[origin/main...HEAD]'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+      - name: Build affected packages
+        run: pnpm turbo run build --filter='...[origin/main...HEAD]'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}

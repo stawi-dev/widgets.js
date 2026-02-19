@@ -1,5 +1,5 @@
 {
-  "name": "@antinvestor/aiwidgets",
+  "name": "@stawi/widgets",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -9,7 +9,10 @@
     "format:check": "prettier --check .",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build && changeset publish"
+    "release": "turbo run build && changeset publish",
+    "build:affected": "turbo run build --filter='...[origin/main...HEAD]'",
+    "lint:affected": "turbo run lint --filter='...[origin/main...HEAD]'",
+    "test:affected": "turbo run test --filter='...[origin/main...HEAD]'"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

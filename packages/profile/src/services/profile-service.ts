@@ -1,4 +1,4 @@
-import type { ApiClient } from "@antinvestor/auth-runtime";
+import type { ApiClient } from "@stawi/auth-runtime";
 import type {
   ProfileResponse,
   AddContactResponse,

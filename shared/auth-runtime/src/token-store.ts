@@ -1,7 +1,7 @@
 import { get, set, del } from "idb-keyval";
 import type { TokenSet } from "./types.js";
 
-const IDB_KEY = "@antinvestor/auth-runtime:tokens";
+const IDB_KEY = "@stawi/auth-runtime:tokens";
 
 export class TokenStore {
   private memoryTokens: TokenSet | null = null;
