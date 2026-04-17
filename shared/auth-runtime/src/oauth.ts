@@ -2,6 +2,7 @@ import type { ResolvedConfig, TokenSet } from "./types.js";
 import { AuthError } from "./errors.js";
 import { generatePkcePair } from "./pkce.js";
 import { TokenManager } from "./token-manager.js";
+import { getDiscovery } from "./discovery.js";
 
 const POPUP_WIDTH = 500;
 const POPUP_HEIGHT = 600;
@@ -64,10 +65,15 @@ export async function startOAuthPopup(
   config: ResolvedConfig,
   tokenManager: TokenManager,
 ): Promise<TokenSet> {
+  // OIDC discovery drives the real endpoint paths. This is what prevents
+  // the auth URL from 404-ing against IdPs that don't use /oauth/authorize
+  // (notably Ory Hydra, which uses /oauth2/auth).
+  const discovery = await getDiscovery(config.idpBaseUrl);
+
   const { verifier, challenge } = await generatePkcePair();
   const state = crypto.randomUUID();
 
-  const authUrl = new URL(`${config.idpBaseUrl}/oauth/authorize`);
+  const authUrl = new URL(discovery.authorization_endpoint);
   authUrl.searchParams.set("client_id", config.clientId);
   authUrl.searchParams.set("redirect_uri", config.redirectUri);
   authUrl.searchParams.set("response_type", "code");
@@ -100,7 +106,7 @@ export async function startOAuthPopup(
     );
   }
 
-  const tokenResponse = await fetch(`${config.idpBaseUrl}/oauth/token`, {
+  const tokenResponse = await fetch(discovery.token_endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

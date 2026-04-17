@@ -4,6 +4,11 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { getAuthRuntime } from "../index.js";
 import type { AuthState } from "../types.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../discovery.js";
+import { _clearFedCMCache } from "../fedcm.js";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
@@ -25,13 +30,28 @@ function clearSingleton() {
   delete g[RUNTIME_KEY];
 }
 
+function seedDiscovery() {
+  // Default idpBaseUrl for test-app; matches resolveConfig default.
+  _setDiscoveryForTest("https://oauth2.stawi.org", {
+    issuer: "https://stawi.org",
+    authorization_endpoint: "https://oauth2.stawi.org/oauth2/auth",
+    token_endpoint: "https://oauth2.stawi.org/oauth2/token",
+    end_session_endpoint: "https://stawi.org/oauth2/sessions/logout",
+  });
+}
+
 describe("AuthRuntime - full coverage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    clearDiscoveryCache();
+    _clearFedCMCache();
+    seedDiscovery();
   });
 
   afterEach(() => {
     clearSingleton();
+    clearDiscoveryCache();
+    _clearFedCMCache();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });

@@ -36,5 +36,6 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
     scopes: config.scopes ?? [...DEFAULTS.scopes],
     fedcmConfigUrl: config.fedcmConfigUrl ?? DEFAULTS.fedcmConfigUrl,
     installationId: config.installationId,
+    skipFedCM: config.skipFedCM ?? false,
   };
 }

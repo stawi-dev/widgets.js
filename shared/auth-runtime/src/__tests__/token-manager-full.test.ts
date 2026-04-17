@@ -3,6 +3,10 @@ import { TokenManager } from "../token-manager.js";
 import { TokenStore } from "../token-store.js";
 import { AuthError } from "../errors.js";
 import type { ResolvedConfig, TokenSet } from "../types.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../discovery.js";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
@@ -17,7 +21,16 @@ const config: ResolvedConfig = {
   redirectUri: "http://localhost/auth/callback",
   scopes: ["openid"],
   fedcmConfigUrl: "/.well-known/web-identity",
+  skipFedCM: false,
 };
+
+function seedDiscovery() {
+  _setDiscoveryForTest("https://idp.example.com", {
+    issuer: "https://idp.example.com",
+    authorization_endpoint: "https://idp.example.com/oauth2/auth",
+    token_endpoint: "https://idp.example.com/oauth2/token",
+  });
+}
 
 describe("TokenManager - refresh flows", () => {
   let store: TokenStore;
@@ -29,10 +42,13 @@ describe("TokenManager - refresh flows", () => {
     onRefreshFailure = vi.fn();
     store = new TokenStore();
     manager = new TokenManager(store, config, onRefreshFailure);
+    clearDiscoveryCache();
+    seedDiscovery();
   });
 
   afterEach(() => {
     manager.destroy();
+    clearDiscoveryCache();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });

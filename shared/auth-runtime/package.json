@@ -1,6 +1,6 @@
 {
   "name": "@stawi/auth-runtime",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "sideEffects": false,
   "files": ["dist"],
   "main": "./dist/index.js",

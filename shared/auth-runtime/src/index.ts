@@ -13,6 +13,7 @@ import { ApiClient } from "./api-client.js";
 import { attemptFedCM } from "./fedcm.js";
 import { startOAuthPopup } from "./oauth.js";
 import { extractRolesFromToken } from "./jwt.js";
+import { getDiscovery } from "./discovery.js";
 
 export type {
   AuthConfig,
@@ -101,32 +102,35 @@ class AuthRuntimeImpl implements AuthRuntime {
         return;
       }
 
-      // 2. Try FedCM silent
-      let tokens = await attemptFedCM(
-        this.config,
-        this.tokenManager,
-        "silent",
-      );
-      if (tokens) {
-        await this.tokenManager.saveTokens(tokens);
-        this.setState("authenticated");
-        return;
+      // 2. FedCM (skipped entirely when the caller opts out).
+      //    attemptFedCM itself short-circuits if the IdP does not publish a
+      //    FedCM config file, so two calls are cheap on unsupported IdPs.
+      if (!this.config.skipFedCM) {
+        let tokens = await attemptFedCM(
+          this.config,
+          this.tokenManager,
+          "silent",
+        );
+        if (tokens) {
+          await this.tokenManager.saveTokens(tokens);
+          this.setState("authenticated");
+          return;
+        }
+
+        tokens = await attemptFedCM(
+          this.config,
+          this.tokenManager,
+          "optional",
+        );
+        if (tokens) {
+          await this.tokenManager.saveTokens(tokens);
+          this.setState("authenticated");
+          return;
+        }
       }
 
-      // 3. Try FedCM interactive
-      tokens = await attemptFedCM(
-        this.config,
-        this.tokenManager,
-        "optional",
-      );
-      if (tokens) {
-        await this.tokenManager.saveTokens(tokens);
-        this.setState("authenticated");
-        return;
-      }
-
-      // 4. Fallback to OAuth2 popup
-      tokens = await startOAuthPopup(this.config, this.tokenManager);
+      // 3. Fallback to OAuth2 popup (authorization_code + PKCE).
+      const tokens = await startOAuthPopup(this.config, this.tokenManager);
       await this.tokenManager.saveTokens(tokens);
       this.setState("authenticated");
     } catch (err) {
@@ -152,13 +156,20 @@ class AuthRuntimeImpl implements AuthRuntime {
   }
 
   async logout(): Promise<void> {
+    // Best-effort server-side logout via the discovery-advertised
+    // end_session_endpoint. Swallow everything — we always want local
+    // state cleared even if the network call fails.
     try {
-      await fetch(`${this.config.idpBaseUrl}/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const discovery = await getDiscovery(this.config.idpBaseUrl);
+      const endSession = discovery.end_session_endpoint;
+      if (endSession) {
+        await fetch(endSession, {
+          method: "POST",
+          credentials: "include",
+        });
+      }
     } catch {
-      // Best-effort server logout
+      /* swallow */
     }
     await this.tokenManager.clearTokens();
     this.cachedUser = null;

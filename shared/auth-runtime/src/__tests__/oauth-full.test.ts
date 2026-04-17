@@ -6,6 +6,10 @@ import { startOAuthPopup } from "../oauth.js";
 import { TokenManager } from "../token-manager.js";
 import { TokenStore } from "../token-store.js";
 import type { ResolvedConfig } from "../types.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../discovery.js";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
@@ -27,7 +31,16 @@ const config: ResolvedConfig = {
   scopes: ["openid", "profile"],
   fedcmConfigUrl: "/.well-known/web-identity",
   installationId: "inst-1",
+  skipFedCM: false,
 };
+
+function seedDiscovery() {
+  _setDiscoveryForTest("https://idp.example.com", {
+    issuer: "https://idp.example.com",
+    authorization_endpoint: "https://idp.example.com/oauth2/auth",
+    token_endpoint: "https://idp.example.com/oauth2/token",
+  });
+}
 
 /** Advance fake timers enough to let poll intervals fire and promises settle. */
 async function flush(ms = 500): Promise<void> {
@@ -47,6 +60,8 @@ describe("startOAuthPopup", () => {
     vi.useFakeTimers();
     store = new TokenStore();
     manager = new TokenManager(store, config);
+    clearDiscoveryCache();
+    seedDiscovery();
 
     mockPopup = {
       closed: false,
@@ -62,6 +77,7 @@ describe("startOAuthPopup", () => {
   afterEach(() => {
     vi.clearAllTimers();
     manager.destroy();
+    clearDiscoveryCache();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });

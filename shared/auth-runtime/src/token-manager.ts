@@ -1,6 +1,7 @@
 import type { ResolvedConfig, TokenSet } from "./types.js";
 import { AuthError } from "./errors.js";
 import { TokenStore } from "./token-store.js";
+import { getDiscovery } from "./discovery.js";
 
 const EXPIRY_BUFFER_MS = 60_000; // Refresh 60s before expiry
 
@@ -60,7 +61,8 @@ export class TokenManager {
 
   private async doRefresh(refreshToken: string): Promise<TokenSet> {
     try {
-      const response = await fetch(`${this.config.idpBaseUrl}/oauth/token`, {
+      const discovery = await getDiscovery(this.config.idpBaseUrl);
+      const response = await fetch(discovery.token_endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({

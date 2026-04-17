@@ -10,6 +10,7 @@ export type AuthErrorCode =
   | "NETWORK_ERROR"
   | "INVALID_CONFIG"
   | "LOGOUT_FAILED"
+  | "DISCOVERY_FAILED"
   | "UNKNOWN";
 
 export class AuthError extends Error {

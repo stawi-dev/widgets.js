@@ -1,7 +1,7 @@
 export interface AuthConfig {
   /** OAuth2 client ID */
   clientId: string;
-  /** Identity provider base URL (default: https://accounts.stawi.org) */
+  /** Identity provider base URL (default: https://oauth2.stawi.org) */
   idpBaseUrl?: string;
   /** API base URL (default: https://api.stawi.org) */
   apiBaseUrl?: string;
@@ -13,6 +13,12 @@ export interface AuthConfig {
   fedcmConfigUrl?: string;
   /** Installation ID for multi-tenant scenarios */
   installationId?: string;
+  /**
+   * Skip FedCM entirely and go straight to the OAuth popup flow. Useful when
+   * the IdP does not publish a FedCM config (e.g. vanilla Ory Hydra): avoids
+   * ~0.5–1s of redundant browser probing on every sign-in. Default: false.
+   */
+  skipFedCM?: boolean;
 }
 
 export interface TokenSet {
@@ -56,4 +62,5 @@ export interface ResolvedConfig {
   scopes: string[];
   fedcmConfigUrl: string;
   installationId?: string;
+  skipFedCM: boolean;
 }

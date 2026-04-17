@@ -16,6 +16,7 @@ const config: ResolvedConfig = {
   redirectUri: "http://localhost/auth/callback",
   scopes: ["openid"],
   fedcmConfigUrl: "/.well-known/web-identity",
+  skipFedCM: false,
 };
 
 describe("TokenManager", () => {

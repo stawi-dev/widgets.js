@@ -2,11 +2,15 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { attemptFedCM } from "../fedcm.js";
+import { attemptFedCM, _clearFedCMCache } from "../fedcm.js";
 import { TokenManager } from "../token-manager.js";
 import { TokenStore } from "../token-store.js";
 import { AuthError } from "../errors.js";
 import type { ResolvedConfig } from "../types.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../discovery.js";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
@@ -21,7 +25,16 @@ const config: ResolvedConfig = {
   redirectUri: "http://localhost/auth/callback",
   scopes: ["openid"],
   fedcmConfigUrl: "/.well-known/web-identity",
+  skipFedCM: false,
 };
+
+function seedDiscovery() {
+  _setDiscoveryForTest("https://idp.example.com", {
+    issuer: "https://idp.example.com",
+    authorization_endpoint: "https://idp.example.com/oauth2/auth",
+    token_endpoint: "https://idp.example.com/oauth2/token",
+  });
+}
 
 describe("attemptFedCM", () => {
   let store: TokenStore;
@@ -30,10 +43,15 @@ describe("attemptFedCM", () => {
   beforeEach(() => {
     store = new TokenStore();
     manager = new TokenManager(store, config);
+    clearDiscoveryCache();
+    _clearFedCMCache();
+    seedDiscovery();
   });
 
   afterEach(() => {
     manager.destroy();
+    clearDiscoveryCache();
+    _clearFedCMCache();
     vi.restoreAllMocks();
     delete (window as Record<string, unknown>).IdentityCredential;
   });
@@ -82,7 +100,7 @@ describe("attemptFedCM", () => {
     const result = await attemptFedCM(config, manager, "optional");
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://idp.example.com/oauth/token",
+      "https://idp.example.com/oauth2/token",
       expect.objectContaining({ method: "POST" }),
     );
     expect(result).not.toBeNull();
@@ -99,9 +117,15 @@ describe("attemptFedCM", () => {
       configurable: true,
     });
 
+    // HEAD probe for FedCM config succeeds (200); POST exchange fails (400).
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 400 }),
+      vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === "HEAD") {
+          return Promise.resolve({ ok: true } as Response);
+        }
+        return Promise.resolve({ ok: false, status: 400 } as Response);
+      }),
     );
 
     await expect(attemptFedCM(config, manager, "silent")).rejects.toThrow(
