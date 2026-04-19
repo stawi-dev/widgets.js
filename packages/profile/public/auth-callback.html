@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Signing you in…</title>
+<script>
+  (function () {
+    try {
+      var params = new URLSearchParams(location.search);
+      var code = params.get("code");
+      var state = params.get("state");
+      if (window.opener && code && state) {
+        window.opener.postMessage(
+          { type: "stawi-auth", code: code, state: state },
+          location.origin,
+        );
+      }
+    } finally {
+      window.close();
+    }
+  })();
+</script>

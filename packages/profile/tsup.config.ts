@@ -1,6 +1,9 @@
 import { defineConfig } from "tsup";
 import pkg from "./package.json";
 
+const copyCallback =
+  "node -e \"require('fs').copyFileSync('public/auth-callback.html', 'dist/auth-callback.html')\"";
+
 export default defineConfig([
   {
     entry: ["src/index.tsx"],
@@ -10,6 +13,7 @@ export default defineConfig([
     sourcemap: true,
     external: ["react", "react-dom", "react/jsx-runtime"],
     define: { __STAWI_PROFILE_VERSION__: JSON.stringify(pkg.version) },
+    onSuccess: copyCallback,
   },
   {
     entry: { "profile.iife": "src/bootstrap.ts" },
