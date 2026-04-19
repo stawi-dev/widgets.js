@@ -114,19 +114,50 @@ export const widgetStyles = `${inlinedFonts}
   position: relative;
 }
 
+/* Solid primary-filled button. White text on the theme's primary
+ * colour gives a WCAG AA contrast ratio on every ships-preset theme
+ * (claudeLight #d97757, claudeDark #d97757, neutralLight #111827,
+ * highContrast #000000). The old design was a transparent trigger
+ * with secondary-grey text — ~2.8:1 contrast on light themes, well
+ * below the 4.5:1 minimum for normal-size text. */
 .aiw-signin-trigger {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  padding: 10px 18px;
+  border: 1px solid var(--aiw-primary);
+  border-radius: 999px;
+  background: var(--aiw-primary);
+  color: #ffffff;
+  font-family: var(--aiw-font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.aiw-signin-trigger:hover {
+  background: var(--aiw-primary-hover, var(--aiw-primary));
+  border-color: var(--aiw-primary-hover, var(--aiw-primary));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.aiw-signin-trigger:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.aiw-signin-trigger:focus-visible {
+  outline: var(--aiw-focus-ring, 2px solid var(--aiw-primary));
+  outline-offset: 2px;
 }
 
 .aiw-signin-trigger:disabled {
   cursor: wait;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .aiw-signin-error {
@@ -142,33 +173,22 @@ export const widgetStyles = `${inlinedFonts}
 }
 
 .aiw-signin-label {
-  font-family: var(--aiw-font-heading);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--aiw-text-secondary);
-  transition: color 0.2s ease;
+  /* Inherit colour, size, weight from the button; this span exists
+   * purely as a click-target landmark for the translation key. */
+  color: inherit;
+  font: inherit;
 }
 
-.aiw-signin-trigger:hover .aiw-signin-label {
-  color: var(--aiw-text);
-}
-
+/* The icon sits flush with the text — same colour, no separate
+ * border treatment. The pill-shape button is already the visual
+ * affordance; a secondary bordered avatar was redundant. */
 .aiw-signin-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid var(--aiw-border);
-  background: var(--aiw-surface);
-  color: var(--aiw-text-secondary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s ease, color 0.2s ease;
-}
-
-.aiw-signin-trigger:hover .aiw-signin-avatar {
-  border-color: var(--aiw-primary);
-  color: var(--aiw-primary);
+  width: 18px;
+  height: 18px;
+  color: inherit;
 }
 
 /* --- Loading trigger --- */
