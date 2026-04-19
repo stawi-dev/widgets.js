@@ -106,6 +106,14 @@ export const widgetStyles = `${inlinedFonts}
 
 /* --- Logged-out trigger --- */
 
+.aiw-signin-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  position: relative;
+}
+
 .aiw-signin-trigger {
   display: flex;
   align-items: center;
@@ -114,6 +122,23 @@ export const widgetStyles = `${inlinedFonts}
   border: none;
   background: transparent;
   cursor: pointer;
+}
+
+.aiw-signin-trigger:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.aiw-signin-error {
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--aiw-danger, #c53030) 12%, transparent);
+  color: var(--aiw-danger, #c53030);
+  border: 1px solid color-mix(in srgb, var(--aiw-danger, #c53030) 30%, transparent);
+  font-family: var(--aiw-font-body);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .aiw-signin-label {
