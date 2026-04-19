@@ -2,7 +2,9 @@
   "name": "@stawi/auth-runtime",
   "version": "0.2.0",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -21,5 +23,11 @@
   },
   "dependencies": {
     "idb-keyval": "^6.2.1"
+  },
+  "devDependencies": {
+    "@peculiar/webcrypto": "^1.5.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "fake-indexeddb": "^6.2.5",
+    "msw": "^2.13.4"
   }
 }
