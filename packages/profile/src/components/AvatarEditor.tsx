@@ -1,8 +1,9 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useContext, useRef } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
 import { getInitials } from "../utils/get-initials.js";
 import { validateAvatar } from "../utils/validate-avatar.js";
+import { HooksContext } from "../context/hooks-context.js";
 
 export interface AvatarEditorProps {
   maxAvatarBytes?: number;
@@ -14,6 +15,7 @@ export function AvatarEditor({
   onError,
 }: AvatarEditorProps = {}) {
   const { state, uploadAvatar } = useProfile();
+  const hooks = useContext(HooksContext);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const profile = state.profile;
@@ -30,10 +32,11 @@ export function AvatarEditor({
         await validateAvatar(file, { maxBytes: maxAvatarBytes });
         await uploadAvatar(file);
       } catch (err) {
-        onError?.(err);
+        // Prefer explicit prop if given, else fall through to hooks context.
+        (onError ?? hooks.onError)?.(err);
       }
     },
-    [uploadAvatar, maxAvatarBytes, onError],
+    [uploadAvatar, maxAvatarBytes, onError, hooks],
   );
 
   if (!profile) return null;

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { HooksContext } from "../context/hooks-context.js";
 
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -12,10 +13,11 @@ export function useGravatarUrl(
   email: string | undefined,
   size: number,
 ): string | null {
+  const hooks = useContext(HooksContext);
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!email) {
+    if (!hooks.gravatar || !email) {
       setUrl(null);
       return;
     }
@@ -25,16 +27,14 @@ export function useGravatarUrl(
 
     sha256Hex(normalized).then((hex) => {
       if (!cancelled) {
-        setUrl(
-          `https://www.gravatar.com/avatar/${hex}?s=${size}&d=retro`,
-        );
+        setUrl(`https://www.gravatar.com/avatar/${hex}?s=${size}&d=404`);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [email, size]);
+  }, [hooks.gravatar, email, size]);
 
   return url;
 }

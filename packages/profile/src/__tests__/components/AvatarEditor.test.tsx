@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { AvatarEditor } from "../../components/AvatarEditor.js";
 import { ProfileContext, type ProfileContextValue } from "../../context/profile-context.js";
+import { HooksContext } from "../../context/hooks-context.js";
 import type { ProfileState } from "../../types.js";
 
 function makeState(overrides: Partial<ProfileState["profile"] & object> = {}): ProfileState {
@@ -19,7 +20,7 @@ function makeState(overrides: Partial<ProfileState["profile"] & object> = {}): P
   };
 }
 
-function renderAvatar(state?: ProfileState) {
+function renderAvatar(state?: ProfileState, gravatar = true) {
   const ctx: ProfileContextValue = {
     state: state ?? makeState(),
     updateProfile: vi.fn(),
@@ -35,9 +36,11 @@ function renderAvatar(state?: ProfileState) {
   };
 
   return render(
-    <ProfileContext.Provider value={ctx}>
-      <AvatarEditor />
-    </ProfileContext.Provider>,
+    <HooksContext.Provider value={{ gravatar }}>
+      <ProfileContext.Provider value={ctx}>
+        <AvatarEditor />
+      </ProfileContext.Provider>
+    </HooksContext.Provider>,
   );
 }
 
