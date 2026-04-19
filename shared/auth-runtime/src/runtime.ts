@@ -125,7 +125,24 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
     },
     async getRoles() { return (await corePromise).getRoles(); },
     async getClaims() { return (await corePromise).getClaims(); },
-    async logout() { await (await corePromise).logout(); },
+    async logout() {
+      await (await corePromise).logout();
+      try {
+        const psa = navigator.credentials?.preventSilentAccess;
+        if (typeof psa === "function") {
+          await psa.call(navigator.credentials);
+        }
+      } catch { /* best-effort */ }
+      try {
+        const IC = (globalThis as { IdentityCredential?: IdentityCredentialConstructor }).IdentityCredential;
+        if (IC && typeof IC.disconnect === "function") {
+          await IC.disconnect({
+            configURL: `${cfg.idpBaseUrl}${cfg.fedcmConfigUrl}`,
+            clientId: cfg.clientId,
+          });
+        }
+      } catch { /* best-effort */ }
+    },
     async prefetchDiscovery() { await getDiscovery(cfg.idpBaseUrl, cfg.timeouts); },
     destroy() { void corePromise.then(c => c.destroy()); },
   };
