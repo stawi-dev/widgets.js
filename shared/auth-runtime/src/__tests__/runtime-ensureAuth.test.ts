@@ -7,7 +7,7 @@ const openLoginUrlMock = vi.fn();
 const runOAuthPopupMock = vi.fn();
 
 vi.mock("../shared/fedcm.js", async (orig) => {
-  const actual: any = await orig();
+  const actual = (await orig()) as Record<string, unknown>;
   return {
     ...actual,
     isFedCMSupported: () => true,
@@ -49,9 +49,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { delete (globalThis as any).IdentityCredential; } catch { /* ignore */ }
-  if ((navigator as any).credentials) {
-    try { delete (navigator as any).credentials; } catch { /* ignore */ }
+  try { delete (globalThis as unknown as { IdentityCredential?: unknown }).IdentityCredential; } catch { /* ignore */ }
+  if ((navigator as unknown as { credentials?: unknown }).credentials) {
+    try { delete (navigator as unknown as { credentials?: unknown }).credentials; } catch { /* ignore */ }
   }
 });
 
@@ -189,13 +189,19 @@ describe("onFedcmEvent telemetry", () => {
     // At minimum the attempt + outcome pair for the active call fires.
     expect(
       events.some(
-        (e: any) =>
-          e.type === "attempt" && e.mediation === "optional" && e.mode === "active",
+        (e) =>
+          (e as { type?: string; mediation?: string; mode?: string }).type === "attempt" &&
+          (e as { mediation?: string }).mediation === "optional" &&
+          (e as { mode?: string }).mode === "active",
       ),
     ).toBe(true);
-    expect(events.some((e: any) => e.type === "outcome" && e.outcome?.kind === "dismissed")).toBe(
-      true,
-    );
+    expect(
+      events.some(
+        (e) =>
+          (e as { type?: string; outcome?: { kind?: string } }).type === "outcome" &&
+          (e as { outcome?: { kind?: string } }).outcome?.kind === "dismissed",
+      ),
+    ).toBe(true);
     rt.destroy();
   });
 
@@ -216,8 +222,8 @@ describe("onFedcmEvent telemetry", () => {
       apiBaseUrl: "https://a",
     });
     await waitForState(rt, "unauthenticated");
-    const events: any[] = [];
-    rt.onFedcmEvent((e) => events.push(e));
+    const events: Array<{ type: string; url?: string }> = [];
+    rt.onFedcmEvent((e) => events.push(e as { type: string; url?: string }));
 
     await rt.ensureAuthenticated();
     expect(events.some((e) => e.type === "login-url-opened" && e.url === "https://i/login")).toBe(
@@ -246,7 +252,8 @@ describe("onFedcmEvent telemetry", () => {
 
   it("fires disconnected event on logout", async () => {
     const disconnect = vi.fn().mockResolvedValue(undefined);
-    (globalThis as any).IdentityCredential = { disconnect };
+    (globalThis as unknown as { IdentityCredential: { disconnect: typeof disconnect } }).IdentityCredential =
+      { disconnect };
     Object.defineProperty(navigator, "credentials", {
       configurable: true,
       value: { preventSilentAccess: vi.fn().mockResolvedValue(undefined), get: vi.fn() },
@@ -258,8 +265,8 @@ describe("onFedcmEvent telemetry", () => {
       skipFedCM: true,
     });
     await waitForState(rt, "unauthenticated");
-    const events: any[] = [];
-    rt.onFedcmEvent((e) => events.push(e));
+    const events: Array<{ type: string }> = [];
+    rt.onFedcmEvent((e) => events.push(e as { type: string }));
     await rt.logout();
     expect(events.some((e) => e.type === "disconnected")).toBe(true);
     rt.destroy();
