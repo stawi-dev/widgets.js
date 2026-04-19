@@ -1,12 +1,18 @@
 import {
   createContext,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { createAuthRuntime, type AuthRuntime, type AuthState } from "@stawi/auth-runtime";
+import {
+  createAuthRuntime,
+  type AuthRuntime,
+  type AuthState,
+} from "@stawi/auth-runtime";
+import { HooksContext } from "./hooks-context.js";
 
 export interface AuthContextValue {
   authState: AuthState;
@@ -22,25 +28,60 @@ interface AuthProviderProps {
   installationId?: string;
   idpBaseUrl?: string;
   apiBaseUrl?: string;
+  /**
+   * Optional pre-constructed runtime. When provided, AuthProvider uses it
+   * directly instead of creating one, and does NOT destroy it on unmount
+   * (the caller owns the lifecycle).
+   */
+  runtime?: AuthRuntime;
   children: ReactNode;
 }
 
-export function AuthProvider({ clientId, installationId, idpBaseUrl, apiBaseUrl, children }: AuthProviderProps) {
+export function AuthProvider({
+  clientId,
+  installationId,
+  idpBaseUrl,
+  apiBaseUrl,
+  runtime: providedRuntime,
+  children,
+}: AuthProviderProps) {
   const runtime = useMemo(
-    () => createAuthRuntime({ clientId, installationId, idpBaseUrl, apiBaseUrl }),
-    [clientId, installationId, idpBaseUrl, apiBaseUrl],
+    () =>
+      providedRuntime ??
+      createAuthRuntime({ clientId, installationId, idpBaseUrl, apiBaseUrl }),
+    [providedRuntime, clientId, installationId, idpBaseUrl, apiBaseUrl],
   );
   const [authState, setAuthState] = useState<AuthState>("initializing");
+  const hooks = useContext(HooksContext);
 
   useEffect(() => {
     const off = runtime.onAuthStateChange(setAuthState);
     return () => {
       off();
-      runtime.destroy();
+      // Only destroy runtimes we created ourselves. If the caller supplied
+      // the runtime, they own its lifecycle.
+      if (!providedRuntime) {
+        runtime.destroy();
+      }
     };
-  }, [runtime]);
+  }, [runtime, providedRuntime]);
 
-  const ensureAuthenticated = useCallback(() => runtime.ensureAuthenticated(), [runtime]);
+  // Forward auth state changes into the HooksContext so embedders can observe.
+  useEffect(() => {
+    if (!hooks.onAuthStateChange) return;
+    return runtime.onAuthStateChange((s) => hooks.onAuthStateChange?.(s));
+  }, [runtime, hooks]);
+
+  // Forward security events.
+  useEffect(() => {
+    if (!hooks.onSecurityEvent) return;
+    return runtime.onSecurityEvent((e) => hooks.onSecurityEvent?.(e));
+  }, [runtime, hooks]);
+
+  const ensureAuthenticated = useCallback(
+    () => runtime.ensureAuthenticated(),
+    [runtime],
+  );
   const logout = useCallback(() => runtime.logout(), [runtime]);
 
   const value = useMemo<AuthContextValue>(

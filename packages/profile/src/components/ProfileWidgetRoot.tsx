@@ -1,9 +1,15 @@
 import { useMemo } from "react";
+import type { AuthRuntime } from "@stawi/auth-runtime";
 import type { ProfileWidgetProps } from "../types.js";
 import { AuthProvider } from "../context/auth-context.js";
 import { HooksContext, type WidgetHooks } from "../context/hooks-context.js";
 import { AuthGate } from "./AuthGate.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
+
+interface ProfileWidgetRootProps extends ProfileWidgetProps {
+  /** Optional pre-constructed runtime shared with mount() so MountHandle can call into it. */
+  runtime?: AuthRuntime;
+}
 
 export function ProfileWidgetRoot({
   installationId,
@@ -18,7 +24,8 @@ export function ProfileWidgetRoot({
   onAuthStateChange,
   onSecurityEvent,
   onMetric,
-}: ProfileWidgetProps) {
+  runtime,
+}: ProfileWidgetRootProps) {
   const hooks = useMemo<WidgetHooks>(
     () => ({
       onError,
@@ -39,6 +46,7 @@ export function ProfileWidgetRoot({
           installationId={installationId}
           idpBaseUrl={idpBaseUrl}
           apiBaseUrl={apiBaseUrl}
+          runtime={runtime}
         >
           <AuthGate adminPanelUrl={adminPanelUrl} onLogout={onLogout} />
         </AuthProvider>

@@ -1,4 +1,5 @@
 import { defineConfig } from "tsup";
+import pkg from "./package.json";
 
 export default defineConfig([
   {
@@ -8,6 +9,7 @@ export default defineConfig([
     clean: true,
     sourcemap: true,
     external: ["react", "react-dom", "react/jsx-runtime"],
+    define: { __STAWI_PROFILE_VERSION__: JSON.stringify(pkg.version) },
   },
   {
     entry: { "profile.iife": "src/bootstrap.ts" },
@@ -16,5 +18,6 @@ export default defineConfig([
     noExternal: [/.*/],
     minify: true,
     sourcemap: false,
+    define: { __STAWI_PROFILE_VERSION__: JSON.stringify(pkg.version) },
   },
 ]);
