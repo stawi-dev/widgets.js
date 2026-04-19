@@ -6,16 +6,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  getAuthRuntime,
-  type AuthState,
-  type AuthRuntime,
-  ApiClient,
-} from "@stawi/auth-runtime";
+import { createAuthRuntime, type AuthRuntime, type AuthState } from "@stawi/auth-runtime";
 
 export interface AuthContextValue {
   authState: AuthState;
-  runtime: AuthRuntime & { getApiClient(): ApiClient };
+  runtime: AuthRuntime;
   ensureAuthenticated: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -30,35 +25,22 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({
-  clientId,
-  installationId,
-  idpBaseUrl,
-  apiBaseUrl,
-  children,
-}: AuthProviderProps) {
+export function AuthProvider({ clientId, installationId, idpBaseUrl, apiBaseUrl, children }: AuthProviderProps) {
   const runtime = useMemo(
-    () =>
-      getAuthRuntime({
-        clientId,
-        installationId,
-        idpBaseUrl,
-        apiBaseUrl,
-      }),
+    () => createAuthRuntime({ clientId, installationId, idpBaseUrl, apiBaseUrl }),
     [clientId, installationId, idpBaseUrl, apiBaseUrl],
   );
-
-  const [authState, setAuthState] = useState<AuthState>(runtime.getState());
+  const [authState, setAuthState] = useState<AuthState>("initializing");
 
   useEffect(() => {
-    return runtime.onAuthStateChange(setAuthState);
+    const off = runtime.onAuthStateChange(setAuthState);
+    return () => {
+      off();
+      runtime.destroy();
+    };
   }, [runtime]);
 
-  const ensureAuthenticated = useCallback(
-    () => runtime.ensureAuthenticated(),
-    [runtime],
-  );
-
+  const ensureAuthenticated = useCallback(() => runtime.ensureAuthenticated(), [runtime]);
   const logout = useCallback(() => runtime.logout(), [runtime]);
 
   const value = useMemo<AuthContextValue>(
