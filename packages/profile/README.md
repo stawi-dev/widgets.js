@@ -223,6 +223,16 @@ Gravatar is **opt-in** (`gravatar: true`). When enabled, the widget falls back t
 
 ---
 
+## Deploying the IdP for FedCM
+
+The widget prefers FedCM (`navigator.credentials.get({ identity })`) over a full OAuth popup whenever the browser and your authorization server both support it. For that to work, your IdP must publish a FedCM configuration document at `/.well-known/web-identity` and implement the four endpoints it points at (`accounts_endpoint`, `client_metadata_endpoint`, `id_assertion_endpoint`, `disconnect_endpoint`). Your OIDC discovery document at `/.well-known/openid-configuration` must additionally advertise the `urn:ietf:params:oauth:grant-type:token-exchange` grant type so the widget can convert the FedCM-issued ID token into OAuth access + refresh tokens.
+
+Four items are load-bearing and easy to miss: (1) the `login_url` field in the FedCM config — the widget opens this in a popup when the browser reports no IdP session, and expects the page to `postMessage({ type: "stawi-login-complete" })` to `window.opener` and then close itself; (2) the `Set-Login: logged-in` / `Set-Login: logged-out` response header (or `navigator.login.setStatus` from an IdP-origin frontend) — Chrome will not even call `accounts_endpoint` unless login status is `logged-in`; (3) the ID token's `nonce` claim on the `id_assertion_endpoint` response — the widget generates a per-attempt 128-bit nonce and verifies the echoed value before exchanging the token; (4) refresh-token rotation with reuse detection — the widget treats `invalid_grant` on a rotated token as a breach signal and wipes all local state.
+
+For the complete operator guide — endpoint contracts, ID-token claim requirements, DPoP semantics, CORS rules, logout flow, and worked Hydra / Keycloak / Auth0 examples — see [`../../docs/idp-fedcm-integration.md`](../../docs/idp-fedcm-integration.md).
+
+---
+
 ## Deployment: callback page
 
 The OAuth popup redirects to `redirectUri`. The widget ships a tiny, side-effect-free HTML page at `dist/auth-callback.html` that `postMessage`s the authorization code back to the opener and then calls `window.close()`.
