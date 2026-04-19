@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useFocusTrap } from "../hooks/use-focus-trap.js";
+import { useT } from "../hooks/use-t.js";
 import { HooksContext } from "../context/hooks-context.js";
 import { CloseIcon } from "./Icons.js";
 
@@ -14,6 +15,7 @@ interface VerifyDialogProps {
 export function VerifyDialog({ open = true, onMinimize }: VerifyDialogProps) {
   const { state, verifyContact, dismissVerification } = useProfile();
   const hooks = useContext(HooksContext);
+  const t = useT();
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -65,15 +67,15 @@ export function VerifyDialog({ open = true, onMinimize }: VerifyDialogProps) {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Verify contact"
+        aria-label={t("verify.title")}
       >
         <div className="aiw-dialog-header">
-          <div className="aiw-dialog-title">Verify Contact</div>
+          <div className="aiw-dialog-title">{t("verify.title")}</div>
           <button
             type="button"
             className="aiw-dialog-close"
-            aria-label="Minimize"
-            title="Minimize"
+            aria-label={t("verify.minimize")}
+            title={t("verify.minimize")}
             onClick={handleMinimize}
           >
             <CloseIcon size={14} />
@@ -81,9 +83,7 @@ export function VerifyDialog({ open = true, onMinimize }: VerifyDialogProps) {
         </div>
         <form onSubmit={handleSubmit}>
           <label>
-            <span className="aiw-field-label">
-              Enter the verification code:
-            </span>
+            <span className="aiw-field-label">{t("verify.label")}</span>
             <input
               className="aiw-input"
               type="text"
@@ -101,14 +101,14 @@ export function VerifyDialog({ open = true, onMinimize }: VerifyDialogProps) {
               className="aiw-btn aiw-btn--secondary"
               onClick={dismissVerification}
             >
-              Cancel
+              {t("verify.cancel")}
             </button>
             <button
               type="submit"
               className="aiw-btn aiw-btn--primary"
               disabled={!code.trim() || submitting}
             >
-              {submitting ? "Verifying..." : "Verify"}
+              {submitting ? t("verify.submitting") : t("verify.submit")}
             </button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useAuth } from "../hooks/use-auth.js";
+import { useT } from "../hooks/use-t.js";
 import { SignOutIcon } from "./Icons.js";
 
 interface LogoutButtonProps {
@@ -8,6 +9,7 @@ interface LogoutButtonProps {
 
 export function LogoutButton({ onLogout }: LogoutButtonProps) {
   const { logout } = useAuth();
+  const t = useT();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = useCallback(async () => {
@@ -30,7 +32,7 @@ export function LogoutButton({ onLogout }: LogoutButtonProps) {
         disabled={loading}
       >
         <SignOutIcon size={16} />
-        {loading ? "Signing out..." : "Sign Out"}
+        {loading ? t("auth.signingOut") : t("auth.signOut")}
       </button>
     </div>
   );

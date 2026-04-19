@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
+import { useT } from "../hooks/use-t.js";
 import { getInitials } from "../utils/get-initials.js";
 import { ProfileCard } from "./ProfileCard.js";
 
@@ -13,6 +14,7 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { state } = useProfile();
+  const t = useT();
 
   const profile = state.profile;
   const gravatarUrl = useGravatarUrl(profile?.email, 80);
@@ -50,11 +52,11 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
       <button
         className="aiw-trigger"
         onClick={toggle}
-        aria-label="Open profile menu"
+        aria-label={t("profile.openMenu")}
         aria-expanded={open}
       >
         {avatarSrc ? (
-          <img src={avatarSrc} alt={profile?.name ?? "Profile"} />
+          <img src={avatarSrc} alt={profile?.name ?? t("profile.fallbackName")} />
         ) : (
           <span className="aiw-trigger-initials">
             {profile ? getInitials(profile.name) : "?"}
@@ -65,7 +67,7 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
       <div
         className={`aiw-popover ${open ? "aiw-popover--open" : ""}`}
         role="dialog"
-        aria-label="Profile"
+        aria-label={t("profile.dialog")}
       >
         <ProfileCard adminPanelUrl={adminPanelUrl} onLogout={onLogout} />
       </div>

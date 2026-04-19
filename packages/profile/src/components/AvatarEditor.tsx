@@ -1,6 +1,7 @@
 import { useCallback, useContext, useRef } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
+import { useT } from "../hooks/use-t.js";
 import { getInitials } from "../utils/get-initials.js";
 import { validateAvatar } from "../utils/validate-avatar.js";
 import { HooksContext } from "../context/hooks-context.js";
@@ -16,6 +17,7 @@ export function AvatarEditor({
 }: AvatarEditorProps = {}) {
   const { state, uploadAvatar } = useProfile();
   const hooks = useContext(HooksContext);
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const profile = state.profile;
@@ -50,7 +52,7 @@ export function AvatarEditor({
         onClick={handleClick}
         role="button"
         tabIndex={0}
-        aria-label="Change avatar"
+        aria-label={t("profile.changeAvatar")}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") handleClick();
         }}
@@ -62,7 +64,7 @@ export function AvatarEditor({
             {getInitials(profile.name)}
           </span>
         )}
-        <div className="aiw-avatar-overlay">Edit</div>
+        <div className="aiw-avatar-overlay">{t("profile.editAvatar")}</div>
       </div>
       <input
         ref={inputRef}

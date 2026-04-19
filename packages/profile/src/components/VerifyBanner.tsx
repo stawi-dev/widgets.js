@@ -1,4 +1,5 @@
 import { useProfile } from "../hooks/use-profile.js";
+import { useT } from "../hooks/use-t.js";
 
 interface VerifyBannerProps {
   /** Called when the user clicks "Enter code" to reopen the dialog. */
@@ -11,16 +12,17 @@ interface VerifyBannerProps {
  */
 export function VerifyBanner({ onEnterCode }: VerifyBannerProps) {
   const { state, dismissVerification } = useProfile();
+  const t = useT();
   const pending = state.pendingVerification;
   if (!pending) return null;
 
   const contact = state.profile?.contacts.find((c) => c.id === pending.contactId);
-  const label = contact?.value ?? "your contact";
+  const label = contact?.value ?? t("verify.pendingFallback");
 
   return (
     <div className="aiw-verify-banner" role="status" aria-live="polite">
       <span className="aiw-verify-banner-text">
-        Verify {label}
+        {t("verify.pendingBanner", { value: label })}
       </span>
       <div className="aiw-verify-banner-actions">
         <button
@@ -28,13 +30,13 @@ export function VerifyBanner({ onEnterCode }: VerifyBannerProps) {
           className="aiw-verify-banner-btn"
           onClick={onEnterCode}
         >
-          Enter code
+          {t("verify.enterCode")}
         </button>
         <button
           type="button"
           className="aiw-verify-banner-dismiss"
-          aria-label="Dismiss verification"
-          title="Dismiss"
+          aria-label={t("verify.dismiss")}
+          title={t("verify.dismiss")}
           onClick={dismissVerification}
         >
           ×

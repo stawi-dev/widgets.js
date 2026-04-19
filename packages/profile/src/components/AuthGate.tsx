@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAuth } from "../hooks/use-auth.js";
+import { useT } from "../hooks/use-t.js";
 import { ProfileProvider } from "../context/profile-context.js";
 import { ProfilePopover } from "./ProfilePopover.js";
 import { PersonIcon } from "./Icons.js";
@@ -11,6 +12,7 @@ interface AuthGateProps {
 
 export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
   const { authState, ensureAuthenticated } = useAuth();
+  const t = useT();
 
   const handleSignIn = useCallback(() => {
     ensureAuthenticated().catch(() => {
@@ -30,7 +32,7 @@ export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
     return (
       <button
         className="aiw-trigger aiw-trigger--loading"
-        aria-label="Loading authentication"
+        aria-label={t("auth.loading")}
         disabled
       >
         <span className="aiw-trigger-pulse" />
@@ -43,9 +45,9 @@ export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
     <button
       className="aiw-signin-trigger"
       onClick={handleSignIn}
-      aria-label="Login"
+      aria-label={t("auth.login")}
     >
-      <span className="aiw-signin-label">Login</span>
+      <span className="aiw-signin-label">{t("auth.login")}</span>
       <span className="aiw-signin-avatar">
         <PersonIcon size={18} />
       </span>

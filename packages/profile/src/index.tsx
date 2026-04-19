@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { ProfileWidgetRoot } from "./components/ProfileWidgetRoot.js";
 import { ShadowStyleProvider } from "./shadow-host.js";
+import { isRtl } from "./i18n/index.js";
 import type { ProfileWidgetProps } from "./types.js";
 
 export type { ProfileWidgetProps, ProfileData, ContactMethod } from "./types.js";
@@ -54,6 +55,10 @@ export function mount(options: MountOptions): MountHandle {
   host.setAttribute("data-antinvestor-profile", "");
   const theme = options.theme ?? "auto";
   host.setAttribute("data-theme", theme);
+  // RTL: set dir on the host element when the locale is a right-to-left script.
+  if (isRtl(options.locale)) {
+    host.setAttribute("dir", "rtl");
+  }
   target.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: "open" });

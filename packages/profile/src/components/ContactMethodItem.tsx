@@ -1,6 +1,7 @@
 import { useCallback, useContext } from "react";
 import type { ContactMethod } from "../types.js";
 import { useProfile } from "../hooks/use-profile.js";
+import { useT } from "../hooks/use-t.js";
 import { HooksContext } from "../context/hooks-context.js";
 import { EmailIcon, PhoneIcon, CloseIcon } from "./Icons.js";
 
@@ -12,6 +13,7 @@ interface ContactMethodItemProps {
 export function ContactMethodItem({ contact, editing }: ContactMethodItemProps) {
   const { removeContact, sendVerification } = useProfile();
   const hooks = useContext(HooksContext);
+  const t = useT();
 
   const handleDelete = useCallback(() => {
     if (contact.primary) return;
@@ -39,25 +41,29 @@ export function ContactMethodItem({ contact, editing }: ContactMethodItemProps) 
       {editing && (
         <>
           {contact.primary && (
-            <span className="aiw-badge aiw-badge--primary">Primary</span>
+            <span className="aiw-badge aiw-badge--primary">
+              {t("contacts.primary")}
+            </span>
           )}
           {contact.verified ? (
-            <span className="aiw-badge aiw-badge--verified">Verified</span>
+            <span className="aiw-badge aiw-badge--verified">
+              {t("contacts.verified")}
+            </span>
           ) : (
             <button
               className="aiw-badge aiw-badge--unverified aiw-badge--clickable"
               onClick={handleStartVerify}
-              title="Click to verify"
+              title={t("contacts.verify")}
             >
-              Verify
+              {t("contacts.verify")}
             </button>
           )}
           {!contact.primary && (
             <button
               className="aiw-contact-delete"
               onClick={handleDelete}
-              aria-label={`Remove ${contact.value}`}
-              title="Remove"
+              aria-label={t("contacts.remove", { value: contact.value })}
+              title={t("contacts.remove", { value: contact.value })}
             >
               <CloseIcon size={12} />
             </button>

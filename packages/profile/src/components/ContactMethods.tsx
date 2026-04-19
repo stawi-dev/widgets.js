@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
+import { useT } from "../hooks/use-t.js";
 import { ContactMethodItem } from "./ContactMethodItem.js";
 import { EditIcon } from "./Icons.js";
 
@@ -9,6 +10,7 @@ function detectContactType(value: string): "email" | "phone" {
 
 export function ContactMethods() {
   const { state, addContact } = useProfile();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newValue, setNewValue] = useState("");
@@ -41,7 +43,7 @@ export function ContactMethods() {
   return (
     <div className="aiw-section">
       <div className="aiw-section-header">
-        <div className="aiw-section-title">Contacts</div>
+        <div className="aiw-section-title">{t("contacts.title")}</div>
         <button
           className={`aiw-section-action${editing ? " aiw-section-action--active" : ""}`}
           onClick={() => {
@@ -51,8 +53,8 @@ export function ContactMethods() {
               setNewValue("");
             }
           }}
-          aria-label={editing ? "Done editing" : "Edit contacts"}
-          title={editing ? "Done" : "Edit"}
+          aria-label={editing ? t("contacts.done") : t("contacts.edit")}
+          title={editing ? t("contacts.done") : t("contacts.edit")}
         >
           <EditIcon />
         </button>
@@ -70,7 +72,7 @@ export function ContactMethods() {
               type="text"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
-              placeholder="email@example.com or +254..."
+              placeholder={t("contacts.addPlaceholder")}
               autoFocus
             />
             <div className="aiw-dialog-actions">
@@ -82,21 +84,21 @@ export function ContactMethods() {
                   setNewValue("");
                 }}
               >
-                Cancel
+                {t("contacts.cancel")}
               </button>
               <button
                 type="submit"
                 className="aiw-btn aiw-btn--primary"
                 disabled={!newValue.trim() || submitting}
               >
-                {submitting ? "Adding..." : "Add"}
+                {submitting ? t("contacts.adding") : t("contacts.addCta")}
               </button>
             </div>
           </form>
         ) : (
           <div className="aiw-add-buttons">
             <button className="aiw-btn-add" onClick={() => setAdding(true)}>
-              + Add Contact
+              {t("contacts.add")}
             </button>
           </div>
         )

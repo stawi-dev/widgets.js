@@ -1,4 +1,5 @@
 import { useRoles } from "../hooks/use-roles.js";
+import { useT } from "../hooks/use-t.js";
 import { ExternalLinkIcon } from "./Icons.js";
 
 const ADMIN_ROLES = ["owner", "admin"];
@@ -9,6 +10,7 @@ interface AdminPanelButtonProps {
 
 export function AdminPanelButton({ adminPanelUrl }: AdminPanelButtonProps) {
   const roles = useRoles();
+  const t = useT();
 
   const hasAccess = roles.some((r) => ADMIN_ROLES.includes(r));
   if (!hasAccess) return null;
@@ -22,7 +24,7 @@ export function AdminPanelButton({ adminPanelUrl }: AdminPanelButtonProps) {
         className="aiw-btn-admin"
       >
         <ExternalLinkIcon />
-        Admin Panel
+        {t("admin.open")}
       </a>
     </div>
   );
