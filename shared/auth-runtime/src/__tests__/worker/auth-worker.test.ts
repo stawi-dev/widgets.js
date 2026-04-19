@@ -35,4 +35,9 @@ describe("worker core", () => {
     expect(state).toBeTypeOf("string");
     expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
   });
+
+  it("getClaims throws TOKEN_EXPIRED when unauthenticated", async () => {
+    const core = await createWorkerCore(cfg as any);
+    await expect(core.getClaims()).rejects.toMatchObject({ code: "TOKEN_EXPIRED" });
+  });
 });

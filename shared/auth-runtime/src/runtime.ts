@@ -12,6 +12,7 @@ export interface AuthRuntime {
   fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }): Promise<T>;
   upload<T = unknown>(path: string, file: File): Promise<T>;
   getRoles(): Promise<string[]>;
+  getClaims(): Promise<Record<string, unknown>>;
   logout(): Promise<void>;
   onAuthStateChange(cb: (s: AuthState) => void): () => void;
   onSecurityEvent(cb: (e: SecurityEvent) => void): () => void;
@@ -87,6 +88,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       return parse<T>(res.body, res.headers);
     },
     async getRoles() { return (await corePromise).getRoles(); },
+    async getClaims() { return (await corePromise).getClaims(); },
     async logout() { await (await corePromise).logout(); },
     async prefetchDiscovery() { await getDiscovery(cfg.idpBaseUrl, cfg.timeouts); },
     destroy() { void corePromise.then(c => c.destroy()); },

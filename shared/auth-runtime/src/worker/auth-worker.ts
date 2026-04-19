@@ -25,6 +25,7 @@ export interface WorkerCore {
   fetch(path: string, init: { method: string; headers?: Record<string,string>; body?: ArrayBuffer|string|null; timeoutMs?: number }): Promise<{ status: number; headers: Record<string,string>; body: ArrayBuffer }>;
   upload(path: string, file: { name: string; type: string; bytes: ArrayBuffer }, timeoutMs?: number): Promise<{ status: number; headers: Record<string,string>; body: ArrayBuffer }>;
   getRoles(): Promise<string[]>;
+  getClaims(): Promise<Record<string, unknown>>;
   logout(): Promise<void>;
   destroy(): void;
   onState(cb: (s: AuthState) => void): () => void;
@@ -225,6 +226,11 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
     } catch { return []; }
   }
 
+  async function getClaims(): Promise<Record<string, unknown>> {
+    const fresh = await ensureFreshAccess();
+    return decodeJwtPayload(fresh.accessToken);
+  }
+
   async function logout() {
     cancelTimer();
     const d = await getDiscovery(cfg.idpBaseUrl, cfg.timeouts).catch(() => null);
@@ -266,7 +272,7 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
     prepareAuth, completeAuth, completeFedcm,
     getAccessToken: ensureFreshAccess,
     fetch: apiFetch, upload: apiUpload,
-    getRoles, logout, destroy,
+    getRoles, getClaims, logout, destroy,
     onState: (cb) => { stateListeners.add(cb); cb(state); return () => { stateListeners.delete(cb); }; },
     onSecurity: (cb) => { secListeners.add(cb); return () => { secListeners.delete(cb); }; },
   };
