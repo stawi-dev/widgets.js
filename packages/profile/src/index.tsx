@@ -1,5 +1,5 @@
 import { createRoot, type Root } from "react-dom/client";
-import { createAuthRuntime, type AuthState } from "@stawi/auth-runtime";
+import { createAuthRuntime, type AuthRuntime, type AuthState } from "@stawi/auth-runtime";
 import { ProfileWidgetRoot } from "./components/ProfileWidgetRoot.js";
 import { ShadowStyleProvider } from "./shadow-host.js";
 import { isRtl } from "./i18n/index.js";
@@ -23,6 +23,14 @@ export {
 
 export interface MountOptions extends ProfileWidgetProps {
   target?: HTMLElement;
+  /** Pre-constructed AuthRuntime to reuse instead of the widget
+   *  creating one internally. Passing your own runtime lets other
+   *  islands / API clients in the host page share the same token
+   *  store — otherwise the widget's runtime and your module-level
+   *  singleton end up as two separate instances with unsynchronised
+   *  auth state. The widget still owns the lifecycle: unmount()
+   *  will call destroy() on this runtime. */
+  runtime?: AuthRuntime;
 }
 
 export interface MountHandle {
@@ -83,8 +91,11 @@ export function mount(options: MountOptions): MountHandle {
 
   // Pre-construct the runtime at mount() scope so the MountHandle can call
   // into it (getAuthState / prefetchDiscovery) without needing to reach
-  // through React internals.
-  const runtime = createAuthRuntime({
+  // through React internals. Callers may supply their own runtime —
+  // useful when an embedder (a host page with multiple widgets or a
+  // dedicated singleton for API calls) wants shared token state.
+  const ownsRuntime = options.runtime === undefined;
+  const runtime = options.runtime ?? createAuthRuntime({
     clientId: options.clientId ?? options.installationId,
     installationId: options.installationId,
     idpBaseUrl: options.idpBaseUrl,
@@ -131,7 +142,11 @@ export function mount(options: MountOptions): MountHandle {
     unmount() {
       root.unmount();
       host.remove();
-      runtime.destroy();
+      // Only destroy a runtime we created ourselves. If the caller
+      // passed one in, they own its lifecycle — destroying it from
+      // under them would break other components sharing the same
+      // token store.
+      if (ownsRuntime) runtime.destroy();
     },
   };
 }
