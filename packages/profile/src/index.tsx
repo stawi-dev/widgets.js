@@ -24,18 +24,28 @@ export interface MountHandle {
   unmount: () => void;
 }
 
-export function mount(options: MountOptions): MountHandle {
-  // Validate adminPanelUrl protocol early; strip if invalid.
-  if (options.adminPanelUrl) {
-    try {
-      const u = new URL(options.adminPanelUrl);
-      if (!(u.protocol === "http:" || u.protocol === "https:")) {
-        throw new Error("bad protocol");
-      }
-    } catch (err) {
-      console.error("[profile] invalid adminPanelUrl; ignoring", err);
-      options = { ...options, adminPanelUrl: undefined };
+/**
+ * Validates that an admin-panel URL uses http(s). Returns the URL if valid,
+ * or undefined otherwise. Logs an error on reject so embedders get feedback.
+ */
+function validateAdminPanelUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      throw new Error(`bad protocol: ${u.protocol}`);
     }
+    return raw;
+  } catch (err) {
+    console.error("[profile] invalid adminPanelUrl; ignoring", err);
+    return undefined;
+  }
+}
+
+export function mount(options: MountOptions): MountHandle {
+  const adminPanelUrl = validateAdminPanelUrl(options.adminPanelUrl);
+  if (adminPanelUrl !== options.adminPanelUrl) {
+    options = { ...options, adminPanelUrl };
   }
 
   const target = options.target ?? document.body;
