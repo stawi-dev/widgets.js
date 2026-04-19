@@ -2,8 +2,17 @@ import { useCallback, useRef } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
 import { getInitials } from "../utils/get-initials.js";
+import { validateAvatar } from "../utils/validate-avatar.js";
 
-export function AvatarEditor() {
+export interface AvatarEditorProps {
+  maxAvatarBytes?: number;
+  onError?: (err: unknown) => void;
+}
+
+export function AvatarEditor({
+  maxAvatarBytes = 2 * 1024 * 1024,
+  onError,
+}: AvatarEditorProps = {}) {
   const { state, uploadAvatar } = useProfile();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -13,14 +22,18 @@ export function AvatarEditor() {
   const handleClick = useCallback(() => inputRef.current?.click(), []);
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
-        uploadAvatar(file).catch(console.error);
-      }
       e.target.value = "";
+      if (!file) return;
+      try {
+        await validateAvatar(file, { maxBytes: maxAvatarBytes });
+        await uploadAvatar(file);
+      } catch (err) {
+        onError?.(err);
+      }
     },
-    [uploadAvatar],
+    [uploadAvatar, maxAvatarBytes, onError],
   );
 
   if (!profile) return null;
@@ -51,7 +64,7 @@ export function AvatarEditor() {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp,image/gif"
         className="aiw-hidden-input"
         onChange={handleChange}
         tabIndex={-1}

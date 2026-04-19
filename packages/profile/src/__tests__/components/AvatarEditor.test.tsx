@@ -31,6 +31,7 @@ function renderAvatar(state?: ProfileState) {
     sendVerification: vi.fn(),
     verifyContact: vi.fn(),
     dismissVerification: vi.fn(),
+    requestVerification: vi.fn(),
   };
 
   return render(
@@ -68,6 +69,8 @@ describe("AvatarEditor", () => {
     renderAvatar();
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeTruthy();
-    expect(input?.getAttribute("accept")).toBe("image/*");
+    expect(input?.getAttribute("accept")).toBe(
+      "image/png,image/jpeg,image/webp,image/gif",
+    );
   });
 });
