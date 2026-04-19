@@ -106,10 +106,19 @@ describe("attemptFedCM (static branches)", () => {
   });
 
   it("returns unsupported when FedCM API is absent", async () => {
-    // jsdom does not polyfill IdentityCredential, so isFedCMSupported() is false.
-    expect(isFedCMSupported()).toBe(false);
-    const outcome = await attemptFedCM(baseCfg, { mediation: "silent" });
-    expect(outcome).toEqual({ kind: "unsupported" });
+    // The test setup installs a polyfilled IdentityCredential so that
+    // production feature-detection resolves truthy. To simulate "FedCM API
+    // absent", temporarily strip IdentityCredential for this test.
+    const holder = window as unknown as { IdentityCredential?: unknown };
+    const saved = holder.IdentityCredential;
+    delete holder.IdentityCredential;
+    try {
+      expect(isFedCMSupported()).toBe(false);
+      const outcome = await attemptFedCM(baseCfg, { mediation: "silent" });
+      expect(outcome).toEqual({ kind: "unsupported" });
+    } finally {
+      if (saved !== undefined) holder.IdentityCredential = saved;
+    }
   });
 });
 
