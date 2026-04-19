@@ -21,7 +21,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error) {
-      return <div className="aiw-error">Something went wrong: {this.state.error}</div>;
+      return (
+        <div className="aiw-error" role="alert" aria-live="assertive">
+          Something went wrong: {this.state.error}
+        </div>
+      );
     }
     return this.props.children;
   }

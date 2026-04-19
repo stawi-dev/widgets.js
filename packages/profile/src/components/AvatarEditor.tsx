@@ -73,6 +73,8 @@ export function AvatarEditor({
         className="aiw-hidden-input"
         onChange={handleChange}
         tabIndex={-1}
+        aria-label={t("profile.changeAvatar")}
+        aria-hidden="true"
       />
     </>
   );

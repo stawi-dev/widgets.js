@@ -13,6 +13,7 @@ interface ProfilePopoverProps {
 export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { state } = useProfile();
   const t = useT();
 
@@ -20,7 +21,18 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
   const gravatarUrl = useGravatarUrl(profile?.email, 80);
 
   const toggle = useCallback(() => setOpen((o) => !o), []);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    // Return focus to the trigger on close (a11y: focus return on Escape /
+    // outside click). A microtask lets React finish the state update first.
+    queueMicrotask(() => {
+      try {
+        triggerRef.current?.focus();
+      } catch {
+        /* ignore focus errors in detached nodes */
+      }
+    });
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -50,6 +62,7 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
   return (
     <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
       <button
+        ref={triggerRef}
         className="aiw-trigger"
         onClick={toggle}
         aria-label={t("profile.openMenu")}

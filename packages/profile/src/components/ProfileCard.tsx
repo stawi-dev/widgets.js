@@ -39,7 +39,11 @@ export function ProfileCard({ adminPanelUrl, onLogout }: ProfileCardProps) {
   }
 
   if (state.error) {
-    return <div className="aiw-error">{state.error}</div>;
+    return (
+      <div className="aiw-error" role="status" aria-live="polite">
+        {state.error}
+      </div>
+    );
   }
 
   const profile = state.profile;
