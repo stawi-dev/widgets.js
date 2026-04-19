@@ -1,5 +1,6 @@
 export const widgetStyles = `
 :host {
+  color-scheme: dark light;
   --aiw-bg: #2c2a28;
   --aiw-surface: #363432;
   --aiw-text: #e8e6e1;
@@ -16,14 +17,47 @@ export const widgetStyles = `
   --aiw-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
   --aiw-font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --aiw-font-body: 'Lora', Georgia, "Times New Roman", serif;
+  --aiw-font-size-base: 14px;
+  --aiw-font-weight-heading: 600;
+  --aiw-font-weight-body: 400;
   --aiw-popover-width: 360px;
+  --aiw-popover-offset: 8px;
+  --aiw-z-popover: 10000;
+  --aiw-z-dialog: 10001;
+  --aiw-trigger-size: 40px;
+  --aiw-avatar-large-size: 72px;
+  --aiw-focus-ring: 2px solid var(--aiw-primary);
 
   font-family: var(--aiw-font-body);
-  font-size: 14px;
+  font-size: var(--aiw-font-size-base);
   line-height: 1.5;
   color: var(--aiw-text);
   display: inline-block;
   position: relative;
+}
+
+:host([data-theme="light"]) {
+  --aiw-bg: #fafaf9;
+  --aiw-surface: #ffffff;
+  --aiw-text: #2a2a2a;
+  --aiw-text-secondary: #6b6b6b;
+  --aiw-border: #e5e5e2;
+  --aiw-muted: rgba(0,0,0,0.05);
+  --aiw-muted-strong: rgba(0,0,0,0.09);
+  --aiw-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
+}
+
+@media (prefers-color-scheme: light) {
+  :host([data-theme="auto"]) {
+    --aiw-bg: #fafaf9;
+    --aiw-surface: #ffffff;
+    --aiw-text: #2a2a2a;
+    --aiw-text-secondary: #6b6b6b;
+    --aiw-border: #e5e5e2;
+    --aiw-muted: rgba(0,0,0,0.05);
+    --aiw-muted-strong: rgba(0,0,0,0.09);
+    --aiw-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
+  }
 }
 
 *, *::before, *::after {
@@ -35,8 +69,8 @@ export const widgetStyles = `
 /* --- Trigger button --- */
 
 .aiw-trigger {
-  width: 40px;
-  height: 40px;
+  width: var(--aiw-trigger-size);
+  height: var(--aiw-trigger-size);
   border-radius: 50%;
   border: 2px solid var(--aiw-border);
   background: var(--aiw-surface);
@@ -133,14 +167,14 @@ export const widgetStyles = `
 
 .aiw-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--aiw-popover-offset));
   right: 0;
   width: var(--aiw-popover-width);
   background: var(--aiw-bg);
   border-radius: var(--aiw-radius);
   box-shadow: var(--aiw-shadow);
   border: 1px solid var(--aiw-border);
-  z-index: 10000;
+  z-index: var(--aiw-z-popover);
   opacity: 0;
   transform: scale(0.95);
   transform-origin: top right;
@@ -174,8 +208,8 @@ export const widgetStyles = `
 }
 
 .aiw-avatar-large {
-  width: 72px;
-  height: 72px;
+  width: var(--aiw-avatar-large-size);
+  height: var(--aiw-avatar-large-size);
   border-radius: 50%;
   background: var(--aiw-surface);
   display: flex;
@@ -583,7 +617,7 @@ export const widgetStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10001;
+  z-index: var(--aiw-z-dialog);
 }
 
 .aiw-dialog {

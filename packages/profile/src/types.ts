@@ -1,3 +1,6 @@
+import type { ProfileWidgetThemedTokens } from "./themes/types.js";
+import type { AuthState, SecurityEvent } from "@stawi/auth-runtime";
+
 // --- Proto enums ---
 export enum ContactType {
   EMAIL = 0,
@@ -77,6 +80,30 @@ export interface ProfileWidgetProps {
   theme?: "light" | "dark" | "auto";
   adminPanelUrl?: string;
   onLogout?: () => void;
+  /** Design tokens overriding theme defaults. Supports optional `dark` / `light` branches. */
+  tokens?: ProfileWidgetThemedTokens;
+  /** Raw CSS appended after tokens — ultimate escape hatch. */
+  css?: string;
+  /** When true, loads Poppins/Lora from Google Fonts. Default false (inlined subsets). */
+  externalFonts?: boolean;
+  /** Max avatar byte size accepted for upload. Default 2 MiB. */
+  maxAvatarBytes?: number;
+  /** BCP-47 locale for i18n; defaults to "en". */
+  locale?: string;
+  /** Opt-in Gravatar fallback for avatars. Default false. */
+  gravatar?: boolean;
+  /** Error hook invoked for recoverable/UI errors. */
+  onError?: (err: unknown) => void;
+  /** Auth state change hook. */
+  onAuthStateChange?: (s: AuthState) => void;
+  /** Security event hook. */
+  onSecurityEvent?: (e: SecurityEvent) => void;
+  /** Metric hook. */
+  onMetric?: (
+    name: string,
+    durationMs: number,
+    tags: Record<string, string>,
+  ) => void;
 }
 
 export type ProfileAction =
