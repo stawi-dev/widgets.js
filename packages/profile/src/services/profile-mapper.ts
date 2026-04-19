@@ -5,6 +5,7 @@ import {
   type ProfileData,
   type ProfileObject,
 } from "../types.js";
+import { sanitizePictureUrl } from "../utils/sanitize-picture-url.js";
 
 function mapContactType(type: ContactType): "email" | "phone" {
   return type === ContactType.EMAIL ? "email" : "phone";
@@ -32,7 +33,7 @@ export function profileObjectToProfileData(
 ): ProfileData {
   const props = proto.properties;
   const name = (props.au_name as string) ?? "";
-  const picture = (props.au_avater_uri as string) || undefined;
+  const picture = sanitizePictureUrl((props.au_avater_uri as string) || undefined);
   const language = (props.language as string) || undefined;
   const country = (props.country as string) || undefined;
 

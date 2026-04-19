@@ -6,59 +6,42 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import { decodeJwtPayload } from "@stawi/auth-runtime";
-import type {
-  ProfileData,
-  ProfileState,
-  ProfileAction,
-} from "../types.js";
+import type { ProfileData, ProfileState, ProfileAction } from "../types.js";
 import { ContactType } from "../types.js";
 import { useAuth } from "../hooks/use-auth.js";
 import {
   getProfile,
-  updateProfile as rpcUpdateProfile,
-  addContact as rpcAddContact,
+  updateProfile as rpcUpdate,
+  addContact as rpcAdd,
   createContactVerification,
   checkVerification,
-  removeContact as rpcRemoveContact,
+  removeContact as rpcRemove,
 } from "../services/profile-service.js";
 import {
   profileObjectToProfileData,
   uiUpdatesToProtoProperties,
 } from "../services/profile-mapper.js";
 
-function profileReducer(
-  state: ProfileState,
-  action: ProfileAction,
-): ProfileState {
+const initialState: ProfileState = {
+  loading: true,
+  error: null,
+  profile: null,
+  pendingVerification: null,
+};
+
+function reducer(state: ProfileState, action: ProfileAction): ProfileState {
   switch (action.type) {
     case "LOADING":
       return { ...state, loading: true, error: null };
     case "LOADED":
-      return {
-        loading: false,
-        error: null,
-        profile: action.profile,
-        pendingVerification: null,
-      };
+      return { loading: false, error: null, profile: action.profile, pendingVerification: null };
     case "ERROR":
       return { ...state, loading: false, error: action.error };
     case "UPDATED_PROFILE":
-      return state.profile
-        ? {
-            ...state,
-            profile: { ...state.profile, ...action.updates },
-          }
-        : state;
+      return state.profile ? { ...state, profile: { ...state.profile, ...action.updates } } : state;
     case "ADDED_CONTACT":
       return state.profile
-        ? {
-            ...state,
-            profile: {
-              ...state.profile,
-              contacts: [...state.profile.contacts, action.contact],
-            },
-          }
+        ? { ...state, profile: { ...state.profile, contacts: [...state.profile.contacts, action.contact] } }
         : state;
     case "REMOVED_CONTACT":
       return state.profile
@@ -66,10 +49,10 @@ function profileReducer(
             ...state,
             profile: {
               ...state.profile,
-              contacts: state.profile.contacts.filter(
-                (c) => c.id !== action.contactId,
-              ),
+              contacts: state.profile.contacts.filter((c) => c.id !== action.contactId),
             },
+            pendingVerification:
+              state.pendingVerification?.contactId === action.contactId ? null : state.pendingVerification,
           }
         : state;
     case "UPDATED_CONTACT":
@@ -91,13 +74,6 @@ function profileReducer(
   }
 }
 
-const initialState: ProfileState = {
-  loading: true,
-  error: null,
-  profile: null,
-  pendingVerification: null,
-};
-
 export interface ProfileContextValue {
   state: ProfileState;
   updateProfile: (updates: Partial<ProfileData>) => Promise<void>;
@@ -109,177 +85,141 @@ export interface ProfileContextValue {
   sendVerification: (contactId: string) => Promise<void>;
   verifyContact: (contactId: string, code: string) => Promise<void>;
   dismissVerification: () => void;
+  requestVerification: (contactId: string, verificationId: string) => void;
 }
 
 export const ProfileContext = createContext<ProfileContextValue | null>(null);
 
-interface ProfileProviderProps {
-  children: ReactNode;
-}
-
-export function ProfileProvider({ children }: ProfileProviderProps) {
+export function ProfileProvider({ children }: { children: ReactNode }) {
   const { runtime } = useAuth();
-  const [state, dispatch] = useReducer(profileReducer, initialState);
-
-  const api = useMemo(() => runtime.getApiClient(), [runtime]);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
     let cancelled = false;
     dispatch({ type: "LOADING" });
-
     (async () => {
       try {
-        const token = await runtime.getAccessToken();
-        const claims = decodeJwtPayload(token);
+        const claims = await runtime.getClaims();
         const profileId = claims.sub as string;
         if (!profileId) throw new Error("JWT missing sub claim");
-
-        const res = await getProfile(api, profileId);
-        if (!cancelled) {
-          dispatch({
-            type: "LOADED",
-            profile: profileObjectToProfileData(res.data),
-          });
-        }
+        const res = await getProfile(runtime, profileId);
+        if (!cancelled) dispatch({ type: "LOADED", profile: profileObjectToProfileData(res.data) });
       } catch (err) {
         if (!cancelled) {
           dispatch({
             type: "ERROR",
-            error:
-              err instanceof Error ? err.message : "Failed to load profile",
+            error: err instanceof Error ? err.message : "Failed to load profile",
           });
         }
       }
     })();
-
     return () => {
       cancelled = true;
     };
-  }, [api, runtime]);
+  }, [runtime]);
 
   const updateProfile = useCallback(
     async (updates: Partial<ProfileData>) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-      const props = uiUpdatesToProtoProperties(updates);
-      await rpcUpdateProfile(api, profileId, props);
+      await rpcUpdate(runtime, profileId, uiUpdatesToProtoProperties(updates));
       dispatch({ type: "UPDATED_PROFILE", updates });
     },
-    [api, state.profile?.id],
+    [runtime, state.profile?.id],
   );
 
   const uploadAvatar = useCallback(
     async (file: File) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      await rpcUpdateProfile(api, profileId, { au_avater_uri: dataUri });
-      dispatch({
-        type: "UPDATED_PROFILE",
-        updates: { picture: dataUri },
-      });
+      const resp = await runtime.upload<{ data: { properties: { au_avater_uri?: string } } }>(
+        `/profile.v1.ProfileService/UpdateAvatar/${profileId}`,
+        file,
+      );
+      const url = resp.data?.properties?.au_avater_uri;
+      if (url) dispatch({ type: "UPDATED_PROFILE", updates: { picture: url } });
     },
-    [api, state.profile?.id],
+    [runtime, state.profile?.id],
   );
 
   const setLanguage = useCallback(
     async (language: string) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-      await rpcUpdateProfile(api, profileId, { language });
+      await rpcUpdate(runtime, profileId, { language });
       dispatch({ type: "UPDATED_PROFILE", updates: { language } });
     },
-    [api, state.profile?.id],
+    [runtime, state.profile?.id],
   );
 
   const setCountry = useCallback(
     async (country: string) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-      await rpcUpdateProfile(api, profileId, { country });
+      await rpcUpdate(runtime, profileId, { country });
       dispatch({ type: "UPDATED_PROFILE", updates: { country } });
     },
-    [api, state.profile?.id],
+    [runtime, state.profile?.id],
   );
 
   const addContact = useCallback(
     async (type: "email" | "phone", value: string) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-
-      const contactType =
-        type === "email" ? ContactType.EMAIL : ContactType.MSISDN;
-      const res = await rpcAddContact(api, profileId, contactType, value);
-
-      // Rebuild contacts from the updated profile
-      const updatedProfile = profileObjectToProfileData(res.data);
-      // Find the newly added contact (last one matching value)
-      const newContact = updatedProfile.contacts.find(
-        (c) => c.value === value,
-      );
-      if (newContact) {
-        dispatch({ type: "ADDED_CONTACT", contact: newContact });
+      const ct = type === "email" ? ContactType.EMAIL : ContactType.MSISDN;
+      const res = await rpcAdd(runtime, profileId, ct, value);
+      const updated = profileObjectToProfileData(res.data);
+      const added = updated.contacts.find((c) => c.value === value) ?? updated.contacts.at(-1);
+      if (added) {
+        dispatch({ type: "ADDED_CONTACT", contact: added });
         dispatch({
           type: "PENDING_VERIFICATION",
-          pending: {
-            contactId: newContact.id,
-            verificationId: res.verification_id,
-          },
+          pending: { contactId: added.id, verificationId: res.verification_id },
         });
       }
     },
-    [api, state.profile?.id],
+    [runtime, state.profile?.id],
   );
 
   const removeContact = useCallback(
     async (contactId: string) => {
-      await rpcRemoveContact(api, contactId);
+      await rpcRemove(runtime, contactId);
       dispatch({ type: "REMOVED_CONTACT", contactId });
     },
-    [api],
+    [runtime],
   );
 
   const sendVerification = useCallback(
     async (contactId: string) => {
-      const res = await createContactVerification(api, contactId);
-      dispatch({
-        type: "PENDING_VERIFICATION",
-        pending: { contactId, verificationId: res.id },
-      });
+      const res = await createContactVerification(runtime, contactId);
+      dispatch({ type: "PENDING_VERIFICATION", pending: { contactId, verificationId: res.id } });
     },
-    [api],
+    [runtime],
   );
 
   const verifyContact = useCallback(
     async (contactId: string, code: string) => {
-      const verificationId = state.pendingVerification?.verificationId;
-      if (!verificationId) return;
-
-      await checkVerification(api, verificationId, code);
-
-      // Find the existing contact and mark it verified
+      const vid = state.pendingVerification?.verificationId;
+      if (!vid) return;
+      await checkVerification(runtime, vid, code);
       const existing = state.profile?.contacts.find((c) => c.id === contactId);
-      if (existing) {
-        dispatch({
-          type: "UPDATED_CONTACT",
-          contact: { ...existing, verified: true },
-        });
-      }
+      if (existing) dispatch({ type: "UPDATED_CONTACT", contact: { ...existing, verified: true } });
       dispatch({ type: "PENDING_VERIFICATION", pending: null });
     },
-    [api, state.pendingVerification?.verificationId, state.profile?.contacts],
+    [runtime, state.pendingVerification?.verificationId, state.profile?.contacts],
   );
 
-  const dismissVerification = useCallback(() => {
-    dispatch({ type: "PENDING_VERIFICATION", pending: null });
-  }, []);
+  const dismissVerification = useCallback(
+    () => dispatch({ type: "PENDING_VERIFICATION", pending: null }),
+    [],
+  );
+
+  const requestVerification = useCallback(
+    (contactId: string, verificationId: string) => {
+      dispatch({ type: "PENDING_VERIFICATION", pending: { contactId, verificationId } });
+    },
+    [],
+  );
 
   const value = useMemo<ProfileContextValue>(
     () => ({
@@ -293,6 +233,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       sendVerification,
       verifyContact,
       dismissVerification,
+      requestVerification,
     }),
     [
       state,
@@ -305,10 +246,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       sendVerification,
       verifyContact,
       dismissVerification,
+      requestVerification,
     ],
   );
 
-  return (
-    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
-  );
+  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
