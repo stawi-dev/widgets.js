@@ -29,6 +29,8 @@ New fields (all optional, defaults chosen to be safe):
 | `onMetric` | `(name, durationMs, tags) => void` | — | Timing hook. |
 | `logger` | `(level, msg, meta) => void` | — | Dev logging. |
 | `timeouts` | `{ discovery?, token?, api?, upload? }` | see protocol spec | Per-phase timeout overrides. |
+| `tokens` | `ProfileWidgetTokens & { dark?; light? }` | — | Visible-styling overrides, see §4.2. |
+| `css` | `string` | — | Raw CSS appended inside Shadow DOM; last-resort escape hatch. |
 
 Existing fields unchanged. v0.2.0 callers keep working.
 
@@ -88,31 +90,90 @@ type AuthState = "initializing" | "authenticated" | "unauthenticated" | "refresh
 
 `ProfileWidgetRoot` uses a `useRef` + `useMemo` keyed by `{clientId, idpBaseUrl, installationId}`. `createAuthRuntime` is called once per instance; `runtime.destroy()` runs in the `useEffect` cleanup. `mount().unmount()` destroys the runtime and its Worker.
 
-### 4.2 Theme
+### 4.2 Theme & visible-styling configuration
 
-`widgetStyles` adds:
+The widget's visible appearance is fully configurable by the embedder without forking the package. Three layers, each optional and additive; later layers override earlier ones:
 
-```css
-:host {
-  color-scheme: dark light;
-  /* dark vars (current) */
-}
-:host([data-theme="light"]) {
-  --aiw-bg: #fafaf9;
-  --aiw-surface: #ffffff;
-  --aiw-text: #2a2a2a;
-  --aiw-text-secondary: #6b6b6b;
-  --aiw-border: #e5e5e2;
-  --aiw-muted: rgba(0,0,0,0.05);
-  --aiw-muted-strong: rgba(0,0,0,0.09);
-  --aiw-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
-}
-@media (prefers-color-scheme: light) {
-  :host([data-theme="auto"]) { /* same light vars */ }
+**Layer 1 — built-in themes.** `theme: "light" | "dark" | "auto"` (default `"auto"`). Shipped stylesheet branches on `:host`, `:host([data-theme="light"])`, and `@media (prefers-color-scheme: light) { :host([data-theme="auto"]) }`. Sets `color-scheme: dark light` on the host for correct native form-control rendering. Both themes meet WCAG AA (4.5:1 contrast).
+
+**Layer 2 — design-token override.** `ProfileWidgetProps.tokens` — a typed partial:
+
+```ts
+export interface ProfileWidgetTokens {
+  // Colors
+  colorBg?: string;
+  colorSurface?: string;
+  colorText?: string;
+  colorTextSecondary?: string;
+  colorBorder?: string;
+  colorPrimary?: string;
+  colorPrimaryHover?: string;
+  colorDanger?: string;
+  colorDangerHover?: string;
+  colorMuted?: string;
+  colorMutedStrong?: string;
+  colorFocusRing?: string;
+
+  // Typography
+  fontHeading?: string;            // full font-family stack string
+  fontBody?: string;
+  fontSizeBase?: string;           // e.g. "14px"
+  fontWeightHeading?: number;      // 500–700
+  fontWeightBody?: number;
+
+  // Geometry
+  radius?: string;                 // e.g. "16px"
+  radiusSm?: string;
+  popoverWidth?: string;           // e.g. "360px"
+  popoverOffset?: string;          // gap between trigger and popover
+  shadow?: string;                 // full box-shadow value
+  zIndexPopover?: number;          // default 10000
+  zIndexDialog?: number;           // default 10001
+
+  // Avatar sizing
+  triggerSize?: string;            // e.g. "40px"
+  avatarLargeSize?: string;        // e.g. "72px"
 }
 ```
 
-`index.tsx` always sets `data-theme` (`auto` default). WCAG AA contrast validated in both themes.
+Tokens are applied as inline CSS variables on the shadow host via `ShadowStyleProvider`:
+
+```ts
+for (const [k, v] of Object.entries(tokens)) {
+  host.style.setProperty(tokenToCssVar(k), String(v));
+}
+```
+
+Each token maps 1:1 to an existing `--aiw-*` CSS variable in the stylesheet. A token left `undefined` keeps the theme default.
+
+**Layer 3 — raw CSS escape hatch.** `ProfileWidgetProps.css?: string` — arbitrary CSS string appended inside the Shadow DOM as a final `<style>`. Intended for rare layout tweaks the token API cannot express; embedders accept the risk that class names are not a stable API.
+
+**Validation.** On mount, each token value is passed through a light validator:
+- Color values: accepted as-is (we do not parse color; CSS rejects invalid values at the property level and the default wins).
+- Size values: must match `/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/` or be a `calc()` expression; invalid values drop with a `console.warn` in dev and no-op in prod.
+- `zIndex*`: must be a finite integer.
+
+Invalid tokens log via the widget's `logger` hook (default silent) — they never throw.
+
+**Token stability contract.** The token names and their semantic meanings are stable API from v1.0. Adding new tokens is minor-version; renaming or removing requires a major.
+
+**Script-tag autoMount** accepts a subset via `data-tokens` as a URL-encoded JSON blob:
+```html
+<script src="..." data-installation-id="..."
+        data-tokens='{"colorPrimary":"#0b7","radius":"12px"}'></script>
+```
+Parse with `JSON.parse` inside a try/catch; on failure, `console.error` and ignore the attribute. Matches the existing `data-*` convention.
+
+**Dark/light-aware tokens.** When `theme === "auto"`, embedders can pass `tokens.dark` and `tokens.light` as nested partials for theme-conditional overrides:
+```ts
+tokens?: ProfileWidgetTokens & {
+  dark?: ProfileWidgetTokens;
+  light?: ProfileWidgetTokens;
+};
+```
+`dark` and `light` merge on top of the base tokens when the respective media query / explicit theme is active. Implemented by emitting two small `<style>` blocks scoped to `:host([data-theme="dark"])` / `:host([data-theme="light"])` / `@media (prefers-color-scheme: …) { :host([data-theme="auto"]) }`.
+
+**Brand presets (opt-in convenience).** Ship `packages/profile/src/themes/presets.ts` exporting a handful of `ProfileWidgetTokens` constants (`claudeDark`, `claudeLight`, `neutralLight`, `highContrast`). Embedders opt in with `tokens: presets.neutralLight`. Presets are pure data; tree-shakeable; no new dependencies.
 
 ### 4.3 Fonts
 
