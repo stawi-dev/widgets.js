@@ -20,7 +20,7 @@ export interface WorkerCore {
   namespace: string;
   prepareAuth(): Promise<{ authUrl: string; state: string; verifier: string }>;
   completeAuth(args: { code: string; verifier: string; state: string; expectedState: string }): Promise<void>;
-  completeFedcm(idToken: string): Promise<void>;
+  completeFedcm(idToken: string, expectedNonce?: string): Promise<void>;
   getAccessToken(forceRefresh?: boolean): Promise<{ accessToken: string; tokenType: "Bearer"|"DPoP" }>;
   fetch(path: string, init: { method: string; headers?: Record<string,string>; body?: ArrayBuffer|string|null; timeoutMs?: number }): Promise<{ status: number; headers: Record<string,string>; body: ArrayBuffer }>;
   upload(path: string, file: { name: string; type: string; bytes: ArrayBuffer }, timeoutMs?: number): Promise<{ status: number; headers: Record<string,string>; body: ArrayBuffer }>;
@@ -144,11 +144,16 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
     setState(reduce(state, { kind: "sign_in_done" }));
   }
 
-  async function completeFedcm(idToken: string) {
+  async function completeFedcm(idToken: string, expectedNonce?: string) {
     const claims = decodeJwtPayload(idToken);
     const iss = claims.iss;
     if (typeof iss !== "string" || iss.replace(/\/$/, "") !== cfg.idpBaseUrl) {
       throw new AuthError("FEDCM_ISS_MISMATCH", "FedCM iss mismatch");
+    }
+    if (typeof expectedNonce === "string" && expectedNonce.length > 0) {
+      if (claims.nonce !== expectedNonce) {
+        throw new AuthError("FEDCM_NONCE_MISMATCH", "FedCM id_token nonce mismatch");
+      }
     }
     const kp = await generateDpopKey();
     const wk = await generateWrapKey();

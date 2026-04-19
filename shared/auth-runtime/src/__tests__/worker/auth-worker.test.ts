@@ -40,4 +40,17 @@ describe("worker core", () => {
     const core = await createWorkerCore(cfg as any);
     await expect(core.getClaims()).rejects.toMatchObject({ code: "TOKEN_EXPIRED" });
   });
+
+  it("completeFedcm throws FEDCM_NONCE_MISMATCH when claim doesn't match expected", async () => {
+    const core = await createWorkerCore(cfg as any);
+    // Build a fake id_token with iss matching cfg and a specific nonce claim.
+    const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({ iss: "https://i", aud: "c", sub: "u", nonce: "token-nonce" }),
+    ).toString("base64url");
+    const token = `${header}.${payload}.sig`;
+    await expect(core.completeFedcm(token, "different-nonce")).rejects.toMatchObject({
+      code: "FEDCM_NONCE_MISMATCH",
+    });
+  });
 });

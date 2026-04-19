@@ -3,7 +3,32 @@ import { AuthError } from "./shared/errors.js";
 import { resolveConfig } from "./shared/config.js";
 import { getDiscovery } from "./shared/discovery.js";
 import { attemptFedCM, isFedCMSupported } from "./shared/fedcm.js";
+import { decodeJwtPayload } from "./shared/jwt.js";
 import { createWorkerCore, type WorkerCore } from "./worker/auth-worker.js";
+
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function resolveNonce(cfg: { fedcm: { nonce?: () => string | Promise<string> } }): Promise<string> {
+  if (cfg.fedcm?.nonce) {
+    const value = await cfg.fedcm.nonce();
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return generateNonce();
+}
+
+function assertFedcmIss(idToken: string, idpBaseUrl: string): void {
+  const claims = decodeJwtPayload(idToken);
+  const iss = claims.iss;
+  if (typeof iss !== "string" || iss.replace(/\/$/, "") !== idpBaseUrl) {
+    throw new AuthError("FEDCM_ISS_MISMATCH", "FedCM iss mismatch");
+  }
+}
 
 declare const __STAWI_AUTH_VERSION__: string | undefined;
 
@@ -32,11 +57,17 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   // proactive FedCM probe on idle — main thread only
   if (typeof window !== "undefined" && isFedCMSupported() && !cfg.skipFedCM) {
     const run = async () => {
-      const outcome = await attemptFedCM(cfg, { mediation: "silent" });
+      const nonce = await resolveNonce(cfg);
+      const outcome = await attemptFedCM(cfg, { mediation: "silent", nonce });
       if (outcome.kind !== "token") return;
       const core = await corePromise;
       if (core.state === "authenticated") return;
-      await core.completeFedcm(outcome.token).catch(() => {});
+      try {
+        assertFedcmIss(outcome.token, cfg.idpBaseUrl);
+      } catch {
+        return;
+      }
+      await core.completeFedcm(outcome.token, nonce).catch(() => {});
     };
     if ("requestIdleCallback" in window) (window as any).requestIdleCallback(run, { timeout: 1500 });
     else setTimeout(run, 0);
@@ -46,8 +77,13 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
     const core = await corePromise;
     if (core.state === "authenticated") return;
     // Try optional FedCM once
-    const outcome = await attemptFedCM(cfg, { mediation: "optional" });
-    if (outcome.kind === "token") { await core.completeFedcm(outcome.token); return; }
+    const nonce = await resolveNonce(cfg);
+    const outcome = await attemptFedCM(cfg, { mediation: "optional", nonce });
+    if (outcome.kind === "token") {
+      assertFedcmIss(outcome.token, cfg.idpBaseUrl);
+      await core.completeFedcm(outcome.token, nonce);
+      return;
+    }
     // Fall through to popup (main-thread helper in separate module)
     const { runOAuthPopup } = await import("./oauth-popup.js");
     await runOAuthPopup(cfg, core);
