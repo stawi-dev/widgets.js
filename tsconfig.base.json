@@ -17,6 +17,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
+      "@stawi/auth-runtime": ["shared/auth-runtime/dist/index.d.ts"],
       "@stawi/*": ["packages/*/src", "shared/*/src"]
     }
   },
