@@ -1,4 +1,6 @@
-export const widgetStyles = `
+import { inlinedFonts } from "./fonts.inlined.js";
+
+export const widgetStyles = `${inlinedFonts}
 :host {
   color-scheme: dark light;
   --aiw-bg: #2c2a28;
