@@ -1,5 +1,7 @@
-import type { ResolvedConfig } from "./types.js";
+import type { ResolvedConfig, FedCMOutcome } from "./types.js";
 import { fetchT } from "../worker/fetchWithTimeout.js";
+
+export type { FedCMOutcome } from "./types.js";
 
 export interface FedCMAttemptOptions {
   mediation: CredentialMediationRequirement;
@@ -7,15 +9,6 @@ export interface FedCMAttemptOptions {
   nonce?: string;
   signal?: AbortSignal;
 }
-
-export type FedCMOutcome =
-  | { kind: "token"; token: string; autoSelected: boolean }
-  | { kind: "no-session"; loginUrl?: string }
-  | { kind: "dismissed" }
-  | { kind: "not-allowed" }
-  | { kind: "aborted" }
-  | { kind: "unsupported" }
-  | { kind: "error"; message: string; code?: string; url?: string };
 
 export interface FedCMConfigProbe {
   available: boolean;

@@ -1,9 +1,17 @@
-import type { AuthConfig, AuthState, SecurityEvent, ApiResponse } from "./shared/types.js";
+import type {
+  AuthConfig,
+  AuthState,
+  SecurityEvent,
+  FedCMEvent,
+  FedCMEventCallback,
+  FedCMOutcome,
+} from "./shared/types.js";
 import { AuthError } from "./shared/errors.js";
 import { resolveConfig } from "./shared/config.js";
 import { getDiscovery } from "./shared/discovery.js";
-import { attemptFedCM, isFedCMSupported } from "./shared/fedcm.js";
+import { attemptFedCM, isFedCMSupported, probeFedCMConfig } from "./shared/fedcm.js";
 import { decodeJwtPayload } from "./shared/jwt.js";
+import { openLoginUrl } from "./login-url.js";
 import { createWorkerCore, type WorkerCore } from "./worker/auth-worker.js";
 
 function generateNonce(): string {
@@ -41,6 +49,7 @@ export interface AuthRuntime {
   logout(): Promise<void>;
   onAuthStateChange(cb: (s: AuthState) => void): () => void;
   onSecurityEvent(cb: (e: SecurityEvent) => void): () => void;
+  onFedcmEvent(cb: FedCMEventCallback): () => void;
   getState(): AuthState;
   prefetchDiscovery(): Promise<void>;
   destroy(): void;
@@ -50,21 +59,36 @@ export interface AuthRuntime {
 export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   const cfg = resolveConfig(config);
   const runtimeAbort = new AbortController();
-  let corePromise: Promise<WorkerCore> = createWorkerCore(cfg);
+  const corePromise: Promise<WorkerCore> = createWorkerCore(cfg);
   let currentState: AuthState = "initializing";
   void corePromise.then((c) => { c.onState((s) => { currentState = s; }); });
   const version = typeof __STAWI_AUTH_VERSION__ === "string" ? __STAWI_AUTH_VERSION__ : "dev";
+
+  const fedcmListeners = new Set<FedCMEventCallback>();
+  function emitFedcmEvent(event: FedCMEvent) {
+    for (const cb of fedcmListeners) {
+      try { cb(event); } catch { /* listener error should not break runtime */ }
+    }
+  }
 
   // proactive FedCM probe on idle — main thread only
   if (typeof window !== "undefined" && isFedCMSupported() && !cfg.skipFedCM) {
     const run = async () => {
       if (runtimeAbort.signal.aborted) return;
+      // Emit probe telemetry (best-effort).
+      try {
+        const probe = await probeFedCMConfig(cfg);
+        emitFedcmEvent({ type: "probe", available: probe.available, loginUrl: probe.loginUrl });
+      } catch { /* ignore */ }
       const nonce = await resolveNonce(cfg);
+      emitFedcmEvent({ type: "attempt", mediation: "silent", mode: "passive" });
       const outcome = await attemptFedCM(cfg, {
         mediation: "silent",
+        mode: "passive",
         nonce,
         signal: runtimeAbort.signal,
       });
+      emitFedcmEvent({ type: "outcome", outcome });
       if (outcome.kind !== "token") return;
       const core = await corePromise;
       if (core.state === "authenticated") return;
@@ -75,28 +99,81 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       }
       await core.completeFedcm(outcome.token, nonce).catch(() => {});
     };
-    if ("requestIdleCallback" in window) (window as any).requestIdleCallback(run, { timeout: 1500 });
+    if ("requestIdleCallback" in window) (window as unknown as { requestIdleCallback: (cb: () => void, o?: unknown) => void }).requestIdleCallback(run, { timeout: 1500 });
     else setTimeout(run, 0);
+  }
+
+  async function tryFedcm(
+    mediation: "silent" | "optional" | "required",
+    mode: "passive" | "active",
+    nonce: string,
+  ): Promise<FedCMOutcome> {
+    emitFedcmEvent({ type: "attempt", mediation, mode });
+    const outcome = await attemptFedCM(cfg, {
+      mediation,
+      mode,
+      nonce,
+      signal: runtimeAbort.signal,
+    });
+    emitFedcmEvent({ type: "outcome", outcome });
+    return outcome;
   }
 
   async function ensureAuthenticated() {
     const core = await corePromise;
     if (core.state === "authenticated") return;
-    // Try optional FedCM once
     const nonce = await resolveNonce(cfg);
-    const outcome = await attemptFedCM(cfg, {
-      mediation: "optional",
-      nonce,
-      signal: runtimeAbort.signal,
-    });
+
+    // First attempt: active mode (Chrome 132+). Older browsers ignore `mode`
+    // and run in legacy mode — harmless.
+    let outcome = await tryFedcm("optional", "active", nonce);
+
     if (outcome.kind === "token") {
       assertFedcmIss(outcome.token, cfg.idpBaseUrl);
       await core.completeFedcm(outcome.token, nonce);
       return;
     }
-    // Fall through to popup (main-thread helper in separate module)
+
+    if (outcome.kind === "no-session" && outcome.loginUrl) {
+      try {
+        emitFedcmEvent({ type: "login-url-opened", url: outcome.loginUrl });
+        await openLoginUrl(cfg, outcome.loginUrl, { signal: runtimeAbort.signal });
+        const retryNonce = await resolveNonce(cfg);
+        const retry = await tryFedcm("required", "active", retryNonce);
+        if (retry.kind === "token") {
+          assertFedcmIss(retry.token, cfg.idpBaseUrl);
+          await core.completeFedcm(retry.token, retryNonce);
+          return;
+        }
+        outcome = retry;
+      } catch (err) {
+        // If the login popup was blocked / closed / aborted, propagate
+        // surface as-is (AuthError with OAUTH_POPUP_* code).
+        if (err instanceof AuthError) throw err;
+        throw err;
+      }
+    }
+
+    if (outcome.kind === "aborted") {
+      throw new AuthError("OAUTH_POPUP_CLOSED", "aborted");
+    }
+
+    // dismissed | not-allowed | unsupported | error | no-session-without-loginUrl
+    // → fall through to the OAuth popup.
     const { runOAuthPopup } = await import("./oauth-popup.js");
-    await runOAuthPopup(cfg, core);
+    try {
+      await runOAuthPopup(cfg, core);
+    } catch (err) {
+      // Enrich fallback error with the FedCM outcome kind so callers get signal.
+      if (err instanceof AuthError && outcome.kind === "error") {
+        throw new AuthError(
+          err.code,
+          `${err.message} (fedcm: ${outcome.message})`,
+          err.cause,
+        );
+      }
+      throw err;
+    }
   }
 
   async function parse<T>(body: ArrayBuffer, headers: Record<string,string>): Promise<T> {
@@ -120,6 +197,10 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       let off: (() => void) | null = null;
       void corePromise.then(c => { off = c.onSecurity(cb); });
       return () => { off?.(); };
+    },
+    onFedcmEvent(cb) {
+      fedcmListeners.add(cb);
+      return () => { fedcmListeners.delete(cb); };
     },
     ensureAuthenticated,
     async fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }) {
@@ -152,6 +233,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
           });
         }
       } catch { /* best-effort */ }
+      emitFedcmEvent({ type: "disconnected" });
     },
     async prefetchDiscovery() { await getDiscovery(cfg.idpBaseUrl, cfg.timeouts); },
     destroy() {

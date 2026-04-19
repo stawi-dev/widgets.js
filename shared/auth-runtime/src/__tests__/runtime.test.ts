@@ -116,4 +116,14 @@ describe("createAuthRuntime", () => {
     await expect(rt.logout()).resolves.toBeUndefined();
     rt.destroy();
   });
+
+  it("onFedcmEvent returns unsubscribe function", async () => {
+    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    await waitForState(rt, "unauthenticated");
+    const cb = vi.fn();
+    const off = rt.onFedcmEvent(cb);
+    expect(typeof off).toBe("function");
+    off();
+    rt.destroy();
+  });
 });

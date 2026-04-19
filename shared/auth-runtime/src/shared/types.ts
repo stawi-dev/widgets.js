@@ -64,3 +64,28 @@ export interface ApiResponse<T = unknown> {
   headers: Record<string, string>;
   body: T;
 }
+
+// Re-exported from fedcm.ts via shared/fedcm.js to keep the surface coherent.
+// Kept as a structural duplicate here because types.ts is leaf-ish — do not
+// import from fedcm.ts (would create a cycle at public type-only consumers).
+export type FedCMOutcome =
+  | { kind: "token"; token: string; autoSelected: boolean }
+  | { kind: "no-session"; loginUrl?: string }
+  | { kind: "dismissed" }
+  | { kind: "not-allowed" }
+  | { kind: "aborted" }
+  | { kind: "unsupported" }
+  | { kind: "error"; message: string; code?: string; url?: string };
+
+export type FedCMEvent =
+  | { type: "probe"; available: boolean; loginUrl?: string }
+  | {
+      type: "attempt";
+      mediation: "silent" | "optional" | "required";
+      mode: "passive" | "active";
+    }
+  | { type: "outcome"; outcome: FedCMOutcome }
+  | { type: "login-url-opened"; url: string }
+  | { type: "disconnected" };
+
+export type FedCMEventCallback = (event: FedCMEvent) => void;

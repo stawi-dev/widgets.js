@@ -6,6 +6,9 @@ export type {
   SecurityEventCallback,
   TokenSet,
   UserInfo,
+  FedCMOutcome,
+  FedCMEvent,
+  FedCMEventCallback,
 } from "./shared/types.js";
 export type { AuthErrorCode } from "./shared/errors.js";
 export { AuthError } from "./shared/errors.js";
