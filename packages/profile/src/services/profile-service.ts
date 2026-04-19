@@ -1,4 +1,4 @@
-import type { ApiClient } from "@stawi/auth-runtime";
+import type { AuthRuntime } from "@stawi/auth-runtime";
 import type {
   ProfileResponse,
   AddContactResponse,
@@ -8,66 +8,67 @@ import type {
 
 const SVC = "/profile.v1.ProfileService";
 
-function rpc<Req, Res>(
-  api: ApiClient,
+function idempotencyKey(): string {
+  return crypto.randomUUID();
+}
+
+function post<Req, Res>(
+  rt: AuthRuntime,
   method: string,
   body: Req,
+  mutation = true,
 ): Promise<Res> {
-  return api.fetch<Res>(`${SVC}/${method}`, {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (mutation) headers["Idempotency-Key"] = idempotencyKey();
+  return rt.fetch<Res>(`${SVC}/${method}`, {
     method: "POST",
+    headers,
     body: JSON.stringify(body),
   });
 }
 
 export function getProfile(
-  api: ApiClient,
+  rt: AuthRuntime,
   profileId: string,
 ): Promise<ProfileResponse> {
-  return rpc(api, "GetById", { id: profileId });
+  return post(rt, "GetById", { id: profileId }, true);
 }
 
 export function updateProfile(
-  api: ApiClient,
+  rt: AuthRuntime,
   profileId: string,
   properties: Record<string, unknown>,
 ): Promise<ProfileResponse> {
-  return rpc(api, "Update", { id: profileId, properties });
+  return post(rt, "Update", { id: profileId, properties });
 }
 
 export function addContact(
-  api: ApiClient,
+  rt: AuthRuntime,
   profileId: string,
   type: ContactType,
   detail: string,
 ): Promise<AddContactResponse> {
-  return rpc(api, "AddContact", {
-    profile_id: profileId,
-    type,
-    detail,
-  });
+  return post(rt, "AddContact", { profile_id: profileId, type, detail });
 }
 
 export function createContactVerification(
-  api: ApiClient,
+  rt: AuthRuntime,
   contactId: string,
 ): Promise<VerificationResponse> {
-  return rpc(api, "CreateContactVerification", { contact_id: contactId });
+  return post(rt, "CreateContactVerification", { contact_id: contactId });
 }
 
 export function checkVerification(
-  api: ApiClient,
+  rt: AuthRuntime,
   verificationId: string,
   code: string,
 ): Promise<VerificationResponse> {
-  return rpc(api, "CheckVerification", {
-    verification_id: verificationId,
-    code,
-  });
+  return post(rt, "CheckVerification", { verification_id: verificationId, code });
 }
 
 export function removeContact(
-  api: ApiClient,
+  rt: AuthRuntime,
   contactId: string,
 ): Promise<void> {
-  return rpc(api, "RemoveContact", { contact_id: contactId });
+  return post(rt, "RemoveContact", { contact_id: contactId });
 }
