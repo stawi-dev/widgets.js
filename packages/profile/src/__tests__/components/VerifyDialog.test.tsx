@@ -15,7 +15,17 @@ function createProfileWrapper(
     state: {
       loading: false,
       error: null,
-      profile: { id: "u1", name: "Test", contacts: [], email: null, language: null, country: null, picture: null },
+      profile: {
+        id: "u1",
+        name: "Test",
+        contacts: [
+          { id: "c1", type: "email", value: "a@b.com", verified: false, primary: false },
+        ],
+        email: undefined,
+        language: undefined,
+        country: undefined,
+        picture: undefined,
+      },
       pendingVerification: pending,
     },
     updateProfile: vi.fn(),
@@ -27,6 +37,7 @@ function createProfileWrapper(
     sendVerification: vi.fn(),
     verifyContact: vi.fn().mockResolvedValue(undefined),
     dismissVerification: vi.fn(),
+    requestVerification: vi.fn(),
     ...overrides,
   };
 
@@ -41,15 +52,22 @@ function createProfileWrapper(
 describe("VerifyDialog", () => {
   it("renders nothing when no pending verification", () => {
     const { Wrapper } = createProfileWrapper(null);
-    const { container } = render(<VerifyDialog />, { wrapper: Wrapper });
+    const { container } = render(<VerifyDialog open={true} />, { wrapper: Wrapper });
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders dialog when pending verification exists", () => {
+  it("renders nothing when open=false even with pending verification", () => {
     const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    const { container } = render(<VerifyDialog open={false} />, { wrapper: Wrapper });
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("renders dialog when open and pending verification exists", () => {
+    const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
+    render(<VerifyDialog open={true} />, { wrapper: Wrapper });
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText("Verify Contact")).toBeTruthy();
+    expect(screen.getByRole("dialog").getAttribute("aria-modal")).toBe("true");
   });
 
   it("submits verification code", async () => {
@@ -58,7 +76,7 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { verifyContact },
     );
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    render(<VerifyDialog open={true} />, { wrapper: Wrapper });
 
     const input = screen.getByPlaceholderText("000000");
     fireEvent.change(input, { target: { value: "123456" } });
@@ -75,34 +93,61 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { verifyContact },
     );
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    render(<VerifyDialog open={true} />, { wrapper: Wrapper });
 
     fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
     expect(verifyContact).not.toHaveBeenCalled();
   });
 
-  it("calls dismissVerification on cancel", () => {
+  it("Cancel clears pending verification (dismissVerification)", () => {
     const dismissVerification = vi.fn();
+    const onMinimize = vi.fn();
     const { Wrapper } = createProfileWrapper(
       { contactId: "c1", verificationId: "v1" },
       { dismissVerification },
     );
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    render(
+      <VerifyDialog open={true} onMinimize={onMinimize} />,
+      { wrapper: Wrapper },
+    );
 
     fireEvent.click(screen.getByText("Cancel"));
     expect(dismissVerification).toHaveBeenCalled();
+    expect(onMinimize).not.toHaveBeenCalled();
   });
 
-  it("calls dismissVerification on backdrop click", () => {
+  it("Minimize X button keeps pending but calls onMinimize", () => {
     const dismissVerification = vi.fn();
+    const onMinimize = vi.fn();
     const { Wrapper } = createProfileWrapper(
       { contactId: "c1", verificationId: "v1" },
       { dismissVerification },
     );
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    render(
+      <VerifyDialog open={true} onMinimize={onMinimize} />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByLabelText("Minimize"));
+    expect(onMinimize).toHaveBeenCalled();
+    expect(dismissVerification).not.toHaveBeenCalled();
+  });
+
+  it("Backdrop click minimizes (does not clear pending)", () => {
+    const dismissVerification = vi.fn();
+    const onMinimize = vi.fn();
+    const { Wrapper } = createProfileWrapper(
+      { contactId: "c1", verificationId: "v1" },
+      { dismissVerification },
+    );
+    render(
+      <VerifyDialog open={true} onMinimize={onMinimize} />,
+      { wrapper: Wrapper },
+    );
 
     fireEvent.click(screen.getByRole("dialog").parentElement!);
-    expect(dismissVerification).toHaveBeenCalled();
+    expect(onMinimize).toHaveBeenCalled();
+    expect(dismissVerification).not.toHaveBeenCalled();
   });
 
   it("handles verification failure gracefully", async () => {
@@ -112,7 +157,7 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { verifyContact },
     );
-    render(<VerifyDialog />, { wrapper: Wrapper });
+    render(<VerifyDialog open={true} />, { wrapper: Wrapper });
 
     const input = screen.getByPlaceholderText("000000");
     fireEvent.change(input, { target: { value: "999999" } });
@@ -125,5 +170,35 @@ describe("VerifyDialog", () => {
       );
     });
     errorSpy.mockRestore();
+  });
+
+  it("Tab key stays inside dialog (focus trap)", () => {
+    const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
+    render(<VerifyDialog open={true} />, { wrapper: Wrapper });
+
+    const dialog = screen.getByRole("dialog");
+    // Type a valid code so the Verify submit button is enabled and included
+    // in the tab order.
+    const input = screen.getByPlaceholderText("000000");
+    fireEvent.change(input, { target: { value: "123456" } });
+
+    const focusables = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled])",
+      ),
+    );
+    expect(focusables.length).toBeGreaterThanOrEqual(3);
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+
+    // Focus on last, press Tab → should wrap to first.
+    last.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // Focus on first, press Shift+Tab → should wrap to last.
+    first.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
   });
 });

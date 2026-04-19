@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ContactMethodItem } from "../../components/ContactMethodItem.js";
 import {
@@ -25,6 +25,7 @@ function createWrapper(overrides: Partial<ProfileContextValue> = {}) {
     sendVerification: vi.fn().mockResolvedValue(undefined),
     verifyContact: vi.fn().mockResolvedValue(undefined),
     dismissVerification: vi.fn(),
+    requestVerification: vi.fn(),
     ...overrides,
   };
 
@@ -116,15 +117,13 @@ describe("ContactMethodItem", () => {
   it("does not delete primary contacts", () => {
     const removeContact = vi.fn();
     const { Wrapper } = createWrapper({ removeContact });
-    // Render a primary contact but with delete button somehow clickable
     render(<ContactMethodItem contact={primaryContact} editing={true} />, {
       wrapper: Wrapper,
     });
-    // Primary contacts don't have a delete button
     expect(screen.queryByLabelText(/Remove/)).toBeNull();
   });
 
-  it("shows verification input when verify is clicked", () => {
+  it("clicking Verify calls sendVerification and does NOT render inline code form", () => {
     const sendVerification = vi.fn().mockResolvedValue(undefined);
     const { Wrapper } = createWrapper({ sendVerification });
     render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
@@ -133,92 +132,8 @@ describe("ContactMethodItem", () => {
 
     fireEvent.click(screen.getByText("Verify"));
     expect(sendVerification).toHaveBeenCalledWith("c3");
-    expect(screen.getByPlaceholderText("Code")).toBeTruthy();
-  });
-
-  it("submits verification code on Enter", async () => {
-    const verifyContact = vi.fn().mockResolvedValue(undefined);
-    const sendVerification = vi.fn().mockResolvedValue(undefined);
-    const { Wrapper } = createWrapper({ verifyContact, sendVerification });
-    render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
-      wrapper: Wrapper,
-    });
-
-    fireEvent.click(screen.getByText("Verify"));
-    const input = screen.getByPlaceholderText("Code");
-    fireEvent.change(input, { target: { value: "123456" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() => {
-      expect(verifyContact).toHaveBeenCalledWith("c3", "123456");
-    });
-  });
-
-  it("cancels verification on Escape", () => {
-    const sendVerification = vi.fn().mockResolvedValue(undefined);
-    const { Wrapper } = createWrapper({ sendVerification });
-    render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
-      wrapper: Wrapper,
-    });
-
-    fireEvent.click(screen.getByText("Verify"));
-    const input = screen.getByPlaceholderText("Code");
-    fireEvent.keyDown(input, { key: "Escape" });
-
-    // Input should be gone after cancel
+    // Inline code entry form is gone – it's now handled by VerifyDialog.
     expect(screen.queryByPlaceholderText("Code")).toBeNull();
-  });
-
-  it("cancels verification on Cancel button click", () => {
-    const sendVerification = vi.fn().mockResolvedValue(undefined);
-    const { Wrapper } = createWrapper({ sendVerification });
-    render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
-      wrapper: Wrapper,
-    });
-
-    fireEvent.click(screen.getByText("Verify"));
-    fireEvent.click(screen.getByText("Cancel"));
-
-    expect(screen.queryByPlaceholderText("Code")).toBeNull();
-  });
-
-  it("submits code via OK button", async () => {
-    const verifyContact = vi.fn().mockResolvedValue(undefined);
-    const sendVerification = vi.fn().mockResolvedValue(undefined);
-    const { Wrapper } = createWrapper({ verifyContact, sendVerification });
-    render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
-      wrapper: Wrapper,
-    });
-
-    fireEvent.click(screen.getByText("Verify"));
-    const input = screen.getByPlaceholderText("Code");
-    fireEvent.change(input, { target: { value: "654321" } });
-    fireEvent.click(screen.getByText("OK"));
-
-    await waitFor(() => {
-      expect(verifyContact).toHaveBeenCalledWith("c3", "654321");
-    });
-  });
-
-  it("handles verification failure gracefully", async () => {
-    const verifyContact = vi.fn().mockRejectedValue(new Error("fail"));
-    const sendVerification = vi.fn().mockResolvedValue(undefined);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { Wrapper } = createWrapper({ verifyContact, sendVerification });
-    render(<ContactMethodItem contact={unverifiedContact} editing={true} />, {
-      wrapper: Wrapper,
-    });
-
-    fireEvent.click(screen.getByText("Verify"));
-    fireEvent.change(screen.getByPlaceholderText("Code"), {
-      target: { value: "bad" },
-    });
-    fireEvent.click(screen.getByText("OK"));
-
-    await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalled();
-    });
-    errorSpy.mockRestore();
   });
 
   it("hides edit controls when not in edit mode", () => {

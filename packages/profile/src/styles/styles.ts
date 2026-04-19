@@ -632,11 +632,98 @@ export const widgetStyles = `${inlinedFonts}
   max-width: 90vw;
 }
 
+.aiw-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .aiw-dialog-title {
   font-family: var(--aiw-font-heading);
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 16px;
+}
+
+.aiw-dialog-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--aiw-text-secondary);
+  padding: 4px;
+  border-radius: var(--aiw-radius-sm);
+  display: flex;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.aiw-dialog-close:hover {
+  background: var(--aiw-muted);
+  color: var(--aiw-text);
+}
+
+/* --- Verify banner --- */
+
+.aiw-verify-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--aiw-border);
+  border-radius: var(--aiw-radius-sm);
+  background: var(--aiw-muted);
+  color: var(--aiw-text);
+  font-family: var(--aiw-font-body);
+  font-size: 13px;
+}
+
+.aiw-verify-banner-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aiw-verify-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aiw-verify-banner-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--aiw-radius-sm);
+  background: var(--aiw-primary);
+  color: white;
+  font-family: var(--aiw-font-heading);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.aiw-verify-banner-btn:hover {
+  background: var(--aiw-primary-hover);
+}
+
+.aiw-verify-banner-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--aiw-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: var(--aiw-radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.aiw-verify-banner-dismiss:hover {
+  color: var(--aiw-text);
+  background: var(--aiw-muted-strong);
 }
 
 .aiw-input {

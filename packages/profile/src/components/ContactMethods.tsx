@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { ContactMethodItem } from "./ContactMethodItem.js";
-import { VerifyDialog } from "./VerifyDialog.js";
 import { EditIcon } from "./Icons.js";
 
 function detectContactType(value: string): "email" | "phone" {
@@ -102,8 +101,6 @@ export function ContactMethods() {
           </div>
         )
       )}
-
-      <VerifyDialog />
     </div>
   );
 }

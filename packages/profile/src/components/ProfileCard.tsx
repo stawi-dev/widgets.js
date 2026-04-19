@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { AvatarEditor } from "./AvatarEditor.js";
 import { LanguageSelector } from "./LanguageSelector.js";
@@ -6,6 +7,8 @@ import { ContactMethods } from "./ContactMethods.js";
 import { AdminPanelButton } from "./AdminPanelButton.js";
 import { LogoutButton } from "./LogoutButton.js";
 import { LoadingSpinner } from "./LoadingSpinner.js";
+import { VerifyDialog } from "./VerifyDialog.js";
+import { VerifyBanner } from "./VerifyBanner.js";
 
 interface ProfileCardProps {
   adminPanelUrl?: string;
@@ -14,6 +17,22 @@ interface ProfileCardProps {
 
 export function ProfileCard({ adminPanelUrl, onLogout }: ProfileCardProps) {
   const { state } = useProfile();
+  const pending = state.pendingVerification;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const pendingId = pending?.verificationId ?? null;
+
+  // When a new pendingVerification arrives, auto-open the dialog.
+  // When it's cleared, close the dialog.
+  useEffect(() => {
+    if (pendingId) {
+      setDialogOpen(true);
+    } else {
+      setDialogOpen(false);
+    }
+  }, [pendingId]);
+
+  const handleMinimize = useCallback(() => setDialogOpen(false), []);
+  const handleEnterCode = useCallback(() => setDialogOpen(true), []);
 
   if (state.loading) {
     return <LoadingSpinner />;
@@ -46,6 +65,11 @@ export function ProfileCard({ adminPanelUrl, onLogout }: ProfileCardProps) {
       {adminPanelUrl && <AdminPanelButton adminPanelUrl={adminPanelUrl} />}
 
       <LogoutButton onLogout={onLogout} />
+
+      {pending && !dialogOpen && (
+        <VerifyBanner onEnterCode={handleEnterCode} />
+      )}
+      <VerifyDialog open={dialogOpen} onMinimize={handleMinimize} />
     </>
   );
 }
