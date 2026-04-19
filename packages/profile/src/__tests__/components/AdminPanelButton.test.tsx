@@ -1,15 +1,27 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { AdminPanelButton } from "../../components/AdminPanelButton.js";
 import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
 
 function createWrapper(roles: string[]) {
+  const runtime = {
+    fetch: vi.fn(),
+    upload: vi.fn(),
+    getRoles: vi.fn().mockResolvedValue(roles),
+    getClaims: vi.fn().mockResolvedValue({}),
+    ensureAuthenticated: vi.fn(),
+    logout: vi.fn(),
+    onAuthStateChange: vi.fn(() => () => {}),
+    onSecurityEvent: vi.fn(() => () => {}),
+    getState: vi.fn(() => "authenticated" as const),
+    prefetchDiscovery: vi.fn(),
+    destroy: vi.fn(),
+    version: "test",
+  } as unknown as AuthContextValue["runtime"];
+
   const value: AuthContextValue = {
     authState: "authenticated",
-    runtime: {
-      getApiClient: vi.fn(),
-      getRoles: vi.fn().mockResolvedValue(roles),
-    } as unknown as AuthContextValue["runtime"],
+    runtime,
     ensureAuthenticated: vi.fn(),
     logout: vi.fn(),
   };

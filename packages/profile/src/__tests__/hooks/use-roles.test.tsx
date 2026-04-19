@@ -7,12 +7,24 @@ import type { AuthState } from "@stawi/auth-runtime";
 
 function createWrapper(authState: AuthState, roles: string[] = []) {
   return function Wrapper({ children }: { children: ReactNode }) {
+    const runtime = {
+      fetch: vi.fn(),
+      upload: vi.fn(),
+      getRoles: vi.fn().mockResolvedValue(roles),
+      getClaims: vi.fn().mockResolvedValue({}),
+      ensureAuthenticated: vi.fn(),
+      logout: vi.fn(),
+      onAuthStateChange: vi.fn(() => () => {}),
+      onSecurityEvent: vi.fn(() => () => {}),
+      getState: vi.fn(() => authState),
+      prefetchDiscovery: vi.fn(),
+      destroy: vi.fn(),
+      version: "test",
+    } as unknown as AuthContextValue["runtime"];
+
     const value: AuthContextValue = {
       authState,
-      runtime: {
-        getApiClient: vi.fn(),
-        getRoles: vi.fn().mockResolvedValue(roles),
-      } as unknown as AuthContextValue["runtime"],
+      runtime,
       ensureAuthenticated: vi.fn(),
       logout: vi.fn(),
     };

@@ -6,26 +6,23 @@ import { AuthContext, type AuthContextValue } from "../../context/auth-context.j
 import { useProfile } from "../../hooks/use-profile.js";
 import { ContactType, ProfileType } from "../../types.js";
 
-function fakeJwt(sub: string): string {
-  const header = btoa(JSON.stringify({ alg: "none" }));
-  const payload = btoa(JSON.stringify({ sub }));
-  return `${header}.${payload}.sig`;
-}
-
 const mockFetch = vi.fn();
 const mockUpload = vi.fn();
-const mockApiClient = { fetch: mockFetch, upload: mockUpload };
+const mockGetClaims = vi.fn();
 
 const mockRuntime = {
-  getApiClient: () => mockApiClient,
-  getState: () => "authenticated" as const,
-  ensureAuthenticated: vi.fn(),
-  getAccessToken: vi.fn().mockResolvedValue(fakeJwt("user-1")),
-  getUser: vi.fn(),
+  fetch: mockFetch,
+  upload: mockUpload,
   getRoles: vi.fn().mockResolvedValue([]),
+  getClaims: mockGetClaims,
+  ensureAuthenticated: vi.fn(),
   logout: vi.fn(),
   onAuthStateChange: vi.fn(() => () => {}),
+  onSecurityEvent: vi.fn(() => () => {}),
+  getState: vi.fn(() => "authenticated" as const),
+  prefetchDiscovery: vi.fn(),
   destroy: vi.fn(),
+  version: "test",
 };
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -66,7 +63,8 @@ describe("ProfileContext - full coverage", () => {
   beforeEach(() => {
     mockFetch.mockReset();
     mockUpload.mockReset();
-    mockRuntime.getAccessToken.mockResolvedValue(fakeJwt("user-1"));
+    mockGetClaims.mockReset();
+    mockGetClaims.mockResolvedValue({ sub: "user-1" });
   });
 
   async function renderAndLoad() {
@@ -217,9 +215,11 @@ describe("ProfileContext - full coverage", () => {
     expect(result.current.state.pendingVerification).toBeNull();
   });
 
-  it("uploadAvatar reads file as data URI and updates", async () => {
+  it("uploadAvatar calls runtime.upload and updates picture", async () => {
     const { result } = await renderAndLoad();
-    mockFetch.mockResolvedValueOnce(undefined);
+    mockUpload.mockResolvedValueOnce({
+      data: { properties: { au_avater_uri: "https://cdn.example.com/avatar.png" } },
+    });
 
     const file = new File(["data"], "avatar.png", { type: "image/png" });
 
@@ -227,11 +227,12 @@ describe("ProfileContext - full coverage", () => {
       await result.current.uploadAvatar(file);
     });
 
-    // The picture should be updated (FileReader produces data URI)
-    expect(result.current.state.profile?.picture).toContain("data:");
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/profile.v1.ProfileService/Update",
-      expect.objectContaining({ method: "POST" }),
+    expect(mockUpload).toHaveBeenCalledWith(
+      "/profile.v1.ProfileService/UpdateAvatar/user-1",
+      file,
+    );
+    expect(result.current.state.profile?.picture).toBe(
+      "https://cdn.example.com/avatar.png",
     );
   });
 

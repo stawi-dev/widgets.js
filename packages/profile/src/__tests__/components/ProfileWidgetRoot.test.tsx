@@ -1,18 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// Mock auth-runtime to avoid real singleton
+// Mock auth-runtime to avoid real runtime initialization
 vi.mock("@stawi/auth-runtime", () => ({
-  getAuthRuntime: vi.fn(() => ({
-    getState: () => "initializing",
-    getApiClient: vi.fn(),
+  createAuthRuntime: vi.fn(() => ({
+    fetch: vi.fn(),
+    upload: vi.fn(),
+    getRoles: vi.fn().mockResolvedValue([]),
+    getClaims: vi.fn().mockResolvedValue({}),
+    ensureAuthenticated: vi.fn(),
+    logout: vi.fn(),
     onAuthStateChange: vi.fn((cb: (s: string) => void) => {
       cb("initializing");
       return () => {};
     }),
-    ensureAuthenticated: vi.fn(),
-    logout: vi.fn(),
+    onSecurityEvent: vi.fn(() => () => {}),
+    getState: vi.fn(() => "initializing"),
+    prefetchDiscovery: vi.fn().mockResolvedValue(undefined),
     destroy: vi.fn(),
+    version: "test",
   })),
   decodeJwtPayload: vi.fn(),
 }));

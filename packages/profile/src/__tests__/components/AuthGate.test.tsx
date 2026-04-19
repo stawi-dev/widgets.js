@@ -4,26 +4,30 @@ import { AuthGate } from "../../components/AuthGate.js";
 import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
 import type { AuthState } from "@stawi/auth-runtime";
 
-function fakeJwt(sub: string): string {
-  const header = btoa(JSON.stringify({ alg: "none" }));
-  const payload = btoa(JSON.stringify({ sub }));
-  return `${header}.${payload}.sig`;
-}
-
 const mockFetch = vi.fn();
-const mockApiClient = {
-  fetch: mockFetch,
-  upload: vi.fn(),
-};
+const mockUpload = vi.fn();
+const mockGetClaims = vi.fn();
+const mockGetRoles = vi.fn();
 
 function mockAuthContext(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
+  const runtime = {
+    fetch: mockFetch,
+    upload: mockUpload,
+    getRoles: mockGetRoles,
+    getClaims: mockGetClaims,
+    ensureAuthenticated: vi.fn(),
+    logout: vi.fn(),
+    onAuthStateChange: vi.fn(() => () => {}),
+    onSecurityEvent: vi.fn(() => () => {}),
+    getState: vi.fn(() => "authenticated" as const),
+    prefetchDiscovery: vi.fn(),
+    destroy: vi.fn(),
+    version: "test",
+  } as unknown as AuthContextValue["runtime"];
+
   return {
     authState: "authenticated" as AuthState,
-    runtime: {
-      getApiClient: () => mockApiClient,
-      getAccessToken: vi.fn().mockResolvedValue(fakeJwt("user-1")),
-      getRoles: vi.fn().mockResolvedValue([]),
-    } as unknown as AuthContextValue["runtime"],
+    runtime,
     ensureAuthenticated: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -35,7 +39,7 @@ function renderWithAuth(authState: AuthState, ensureAuthenticated?: () => Promis
   if (authState === "authenticated") {
     mockFetch.mockResolvedValueOnce({
       data: {
-        id: "user-1",
+        id: "profile-id-1",
         type: 0,
         properties: { au_name: "Test" },
         contacts: [],
@@ -60,6 +64,11 @@ function renderWithAuth(authState: AuthState, ensureAuthenticated?: () => Promis
 describe("AuthGate", () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    mockUpload.mockReset();
+    mockGetClaims.mockReset();
+    mockGetRoles.mockReset();
+    mockGetClaims.mockResolvedValue({ sub: "profile-id-1" });
+    mockGetRoles.mockResolvedValue([]);
   });
 
   it("shows profile popover when authenticated", () => {
