@@ -30,6 +30,7 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
     installationId: config.installationId,
     skipFedCM: config.skipFedCM ?? false,
     timeouts: { ...DEFAULTS.timeouts, ...(config.timeouts ?? {}) },
+    fedcm: config.fedcm ?? {},
   };
 }
 

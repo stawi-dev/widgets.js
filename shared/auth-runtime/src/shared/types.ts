@@ -13,6 +13,13 @@ export interface AuthConfig {
   installationId?: string;
   skipFedCM?: boolean;
   timeouts?: { discovery?: number; token?: number; api?: number; upload?: number };
+  fedcm?: {
+    nonce?: () => string | Promise<string>;
+    fields?: string[];
+    loginHint?: string;
+    domainHint?: string;
+    params?: Record<string, string>;
+  };
 }
 
 export interface ResolvedConfig {
@@ -25,6 +32,13 @@ export interface ResolvedConfig {
   installationId?: string;
   skipFedCM: boolean;
   timeouts: { discovery: number; token: number; api: number; upload: number };
+  fedcm: {
+    nonce?: () => string | Promise<string>;
+    fields?: string[];
+    loginHint?: string;
+    domainHint?: string;
+    params?: Record<string, string>;
+  };
 }
 
 export interface TokenSet {
