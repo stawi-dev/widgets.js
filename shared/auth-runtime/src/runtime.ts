@@ -32,11 +32,11 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   // proactive FedCM probe on idle — main thread only
   if (typeof window !== "undefined" && isFedCMSupported() && !cfg.skipFedCM) {
     const run = async () => {
-      const token = await attemptFedCM(cfg, "silent");
-      if (!token) return;
+      const outcome = await attemptFedCM(cfg, { mediation: "silent" });
+      if (outcome.kind !== "token") return;
       const core = await corePromise;
       if (core.state === "authenticated") return;
-      await core.completeFedcm(token).catch(() => {});
+      await core.completeFedcm(outcome.token).catch(() => {});
     };
     if ("requestIdleCallback" in window) (window as any).requestIdleCallback(run, { timeout: 1500 });
     else setTimeout(run, 0);
@@ -46,8 +46,8 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
     const core = await corePromise;
     if (core.state === "authenticated") return;
     // Try optional FedCM once
-    const token = await attemptFedCM(cfg, "optional");
-    if (token) { await core.completeFedcm(token); return; }
+    const outcome = await attemptFedCM(cfg, { mediation: "optional" });
+    if (outcome.kind === "token") { await core.completeFedcm(outcome.token); return; }
     // Fall through to popup (main-thread helper in separate module)
     const { runOAuthPopup } = await import("./oauth-popup.js");
     await runOAuthPopup(cfg, core);
