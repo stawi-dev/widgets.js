@@ -49,6 +49,7 @@ export interface AuthRuntime {
 
 export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   const cfg = resolveConfig(config);
+  const runtimeAbort = new AbortController();
   let corePromise: Promise<WorkerCore> = createWorkerCore(cfg);
   let currentState: AuthState = "initializing";
   void corePromise.then((c) => { c.onState((s) => { currentState = s; }); });
@@ -57,8 +58,13 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   // proactive FedCM probe on idle — main thread only
   if (typeof window !== "undefined" && isFedCMSupported() && !cfg.skipFedCM) {
     const run = async () => {
+      if (runtimeAbort.signal.aborted) return;
       const nonce = await resolveNonce(cfg);
-      const outcome = await attemptFedCM(cfg, { mediation: "silent", nonce });
+      const outcome = await attemptFedCM(cfg, {
+        mediation: "silent",
+        nonce,
+        signal: runtimeAbort.signal,
+      });
       if (outcome.kind !== "token") return;
       const core = await corePromise;
       if (core.state === "authenticated") return;
@@ -78,7 +84,11 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
     if (core.state === "authenticated") return;
     // Try optional FedCM once
     const nonce = await resolveNonce(cfg);
-    const outcome = await attemptFedCM(cfg, { mediation: "optional", nonce });
+    const outcome = await attemptFedCM(cfg, {
+      mediation: "optional",
+      nonce,
+      signal: runtimeAbort.signal,
+    });
     if (outcome.kind === "token") {
       assertFedcmIss(outcome.token, cfg.idpBaseUrl);
       await core.completeFedcm(outcome.token, nonce);
@@ -144,6 +154,9 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       } catch { /* best-effort */ }
     },
     async prefetchDiscovery() { await getDiscovery(cfg.idpBaseUrl, cfg.timeouts); },
-    destroy() { void corePromise.then(c => c.destroy()); },
+    destroy() {
+      runtimeAbort.abort();
+      void corePromise.then(c => c.destroy());
+    },
   };
 }

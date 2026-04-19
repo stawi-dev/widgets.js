@@ -80,6 +80,31 @@ describe("createAuthRuntime", () => {
     rt.destroy();
   });
 
+  it("destroy aborts the runtime's internal AbortController", async () => {
+    // Capture AbortController instances created during runtime init.
+    const created: AbortController[] = [];
+    const RealAC = globalThis.AbortController;
+    class SpyAC extends RealAC {
+      constructor() {
+        super();
+        created.push(this);
+      }
+    }
+    (globalThis as any).AbortController = SpyAC;
+    try {
+      const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+      await waitForState(rt, "unauthenticated");
+      // The runtime owns at least one AbortController.
+      expect(created.length).toBeGreaterThan(0);
+      const runtimeAbort = created[0];
+      expect(runtimeAbort.signal.aborted).toBe(false);
+      rt.destroy();
+      expect(runtimeAbort.signal.aborted).toBe(true);
+    } finally {
+      (globalThis as any).AbortController = RealAC;
+    }
+  });
+
   it("logout tolerates missing FedCM methods", async () => {
     Object.defineProperty(navigator, "credentials", {
       configurable: true,
