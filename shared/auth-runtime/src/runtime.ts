@@ -11,7 +11,7 @@ import { resolveConfig } from "./shared/config.js";
 import { getDiscovery } from "./shared/discovery.js";
 import { attemptFedCM, isFedCMSupported, probeFedCMConfig } from "./shared/fedcm.js";
 import { decodeJwtPayload } from "./shared/jwt.js";
-import { openLoginUrl } from "./login-url.js";
+import { startRedirect, completeRedirect } from "./oauth-redirect.js";
 import { createWorkerCore, type WorkerCore } from "./worker/auth-worker.js";
 
 function generateNonce(): string {
@@ -42,6 +42,19 @@ declare const __STAWI_AUTH_VERSION__: string | undefined;
 
 export interface AuthRuntime {
   ensureAuthenticated(): Promise<void>;
+  /**
+   * Completes the OIDC redirect flow on the callback page. Reads
+   * `?code=` + `?state=` from `window.location.search` and the
+   * matching verifier from sessionStorage; exchanges the code for
+   * tokens via the worker. Returns the `returnTo` URL stashed by the
+   * earlier `startRedirect` so the caller can route the user back to
+   * where they started (or to a fixed landing page).
+   *
+   * Mutually exclusive with `ensureAuthenticated()` — the host page
+   * calls one or the other depending on whether it is the "sign-in"
+   * trigger or the `/auth/callback/` landing page.
+   */
+  completeRedirect(): Promise<{ returnTo: string }>;
   fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }): Promise<T>;
   upload<T = unknown>(path: string, file: File): Promise<T>;
   getRoles(): Promise<string[]>;
@@ -126,7 +139,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
 
     // First attempt: active mode (Chrome 132+). Older browsers ignore `mode`
     // and run in legacy mode — harmless.
-    let outcome = await tryFedcm("optional", "active", nonce);
+    const outcome = await tryFedcm("optional", "active", nonce);
 
     if (outcome.kind === "token") {
       assertFedcmIss(outcome.token, cfg.idpBaseUrl);
@@ -134,46 +147,18 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       return;
     }
 
-    if (outcome.kind === "no-session" && outcome.loginUrl) {
-      try {
-        emitFedcmEvent({ type: "login-url-opened", url: outcome.loginUrl });
-        await openLoginUrl(cfg, outcome.loginUrl, { signal: runtimeAbort.signal });
-        const retryNonce = await resolveNonce(cfg);
-        const retry = await tryFedcm("required", "active", retryNonce);
-        if (retry.kind === "token") {
-          assertFedcmIss(retry.token, cfg.idpBaseUrl);
-          await core.completeFedcm(retry.token, retryNonce);
-          return;
-        }
-        outcome = retry;
-      } catch (err) {
-        // If the login popup was blocked / closed / aborted, propagate
-        // surface as-is (AuthError with OAUTH_POPUP_* code).
-        if (err instanceof AuthError) throw err;
-        throw err;
-      }
-    }
-
+    // For every non-token FedCM outcome (no-session, dismissed, not-allowed,
+    // unsupported, error) we fall through to the OAuth redirect. The IdP's
+    // authorize endpoint handles both "needs login" and "session exists"
+    // server-side; we no longer try to open a separate IdP-login popup
+    // because that path is popup-blocker-prone and the redirect handles
+    // both cases identically. `aborted` is the one terminal — the user
+    // explicitly dismissed FedCM in active mode, so we surface that as
+    // a non-retryable error.
     if (outcome.kind === "aborted") {
-      throw new AuthError("OAUTH_POPUP_CLOSED", "aborted");
+      throw new AuthError("OAUTH_FAILED", "user dismissed sign-in");
     }
-
-    // dismissed | not-allowed | unsupported | error | no-session-without-loginUrl
-    // → fall through to the OAuth popup.
-    const { runOAuthPopup } = await import("./oauth-popup.js");
-    try {
-      await runOAuthPopup(cfg, core);
-    } catch (err) {
-      // Enrich fallback error with the FedCM outcome kind so callers get signal.
-      if (err instanceof AuthError && outcome.kind === "error") {
-        throw new AuthError(
-          err.code,
-          `${err.message} (fedcm: ${outcome.message})`,
-          err.cause,
-        );
-      }
-      throw err;
-    }
+    await startRedirect(cfg, core);
   }
 
   async function parse<T>(body: ArrayBuffer, headers: Record<string,string>): Promise<T> {
@@ -203,6 +188,10 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       return () => { fedcmListeners.delete(cb); };
     },
     ensureAuthenticated,
+    async completeRedirect() {
+      const core = await corePromise;
+      return completeRedirect(cfg, core);
+    },
     async fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }) {
       const core = await corePromise;
       const res = await core.fetch(path, { method: init?.method ?? "GET", headers: init?.headers, body: init?.body ?? null, timeoutMs: init?.timeoutMs });

@@ -14,6 +14,12 @@ export default defineConfig({
         "src/**/__tests__/**",
         "src/**/*.test.ts",
         "src/**/types.ts",
+        // rpc.ts is a type-only declaration file for the
+        // worker-isolated transport (not yet wired). No runtime code
+        // to cover.
+        "src/shared/rpc.ts",
+        // dom.d.ts is ambient type declarations only.
+        "src/shared/dom.d.ts",
       ],
       thresholds: {
         lines: 80,

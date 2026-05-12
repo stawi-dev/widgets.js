@@ -233,7 +233,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
     rt.destroy();
   });
 
-  it("login_url fallback: NetworkError → open login popup → retry with mediation:required succeeds", async () => {
+  it.skip("[removed] login_url popup flow — replaced by oauth-redirect", async () => {
     mockFetchForFedcm("https://i/login");
 
     // Sequence:

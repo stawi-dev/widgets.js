@@ -53,4 +53,82 @@ describe("worker core", () => {
       code: "FEDCM_NONCE_MISMATCH",
     });
   });
+
+  it("completeAuth exchanges code, persists tokens, transitions to authenticated", async () => {
+    // Mocking the token endpoint response is sufficient — the worker
+    // generates DPoP key + wrap key internally and we don't pin those.
+    (globalThis.fetch as any).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: "at-1",
+          refresh_token: "rt-1",
+          expires_in: 300,
+          token_type: "DPoP",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const core = await createWorkerCore(cfg as any);
+    expect(core.state).toBe("unauthenticated");
+
+    const states: string[] = [];
+    core.onState((s) => { states.push(s); });
+
+    const { state, verifier } = await core.prepareAuth();
+    await core.completeAuth({ code: "the-code", state, verifier, expectedState: state });
+
+    expect(core.state).toBe("authenticated");
+    expect(states).toContain("authenticated");
+
+    // After auth, getClaims/getRoles work against the JWT we just stored.
+    // The "access token" we fed in isn't a real JWT, so decodeJwtPayload
+    // throws — getRoles swallows that and returns []. That branch is
+    // useful to cover.
+    await expect(core.getRoles()).resolves.toEqual([]);
+  });
+
+  it("completeAuth throws OAUTH_STATE_MISMATCH when callback state differs from expected", async () => {
+    const core = await createWorkerCore(cfg as any);
+    await expect(
+      core.completeAuth({ code: "c", state: "wrong", verifier: "v", expectedState: "expected" }),
+    ).rejects.toMatchObject({ code: "OAUTH_STATE_MISMATCH" });
+    expect(core.state).toBe("unauthenticated");
+  });
+
+  it("logout hits end_session + revocation endpoints when discovery advertises them", async () => {
+    // Override the discovery for this test with both optional endpoints.
+    clearDiscoveryCache();
+    _setDiscoveryForTest("https://i", {
+      issuer: "https://i",
+      authorization_endpoint: "https://i/auth",
+      token_endpoint: "https://i/token",
+      end_session_endpoint: "https://i/logout",
+      revocation_endpoint: "https://i/revoke",
+      dpop_signing_alg_values_supported: ["ES256"],
+    } as any);
+    // First fetch: token exchange. Subsequent fetches: end_session and
+    // revocation, both 200 (we don't care about response shape).
+    const f = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "at-2", refresh_token: "rt-2", expires_in: 300, token_type: "DPoP",
+        id_token: Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url") + "." +
+                  Buffer.from(JSON.stringify({ iss: "https://i", aud: "c", sub: "u" })).toString("base64url") +
+                  ".sig",
+      }), { status: 200 }))
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    globalThis.fetch = f as any;
+
+    const core = await createWorkerCore(cfg as any);
+    const { state, verifier } = await core.prepareAuth();
+    await core.completeAuth({ code: "the-code", state, verifier, expectedState: state });
+    expect(core.state).toBe("authenticated");
+
+    await core.logout();
+    expect(core.state).toBe("unauthenticated");
+
+    const urls = f.mock.calls.map((c) => c[0] as string);
+    expect(urls).toContain("https://i/logout");
+    expect(urls).toContain("https://i/revoke");
+  });
 });

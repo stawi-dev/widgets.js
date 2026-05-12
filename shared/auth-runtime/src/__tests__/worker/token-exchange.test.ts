@@ -1,6 +1,6 @@
 // shared/auth-runtime/src/__tests__/worker/token-exchange.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { exchangeCode, refreshTokens, RefreshOutcome } from "../../worker/token-exchange.js";
+import { exchangeCode, refreshTokens } from "../../worker/token-exchange.js";
 import { _setDiscoveryForTest, clearDiscoveryCache } from "../../shared/discovery.js";
 import { generateDpopKey } from "../../worker/crypto.js";
 import { makeDpopContext } from "../../worker/dpop.js";

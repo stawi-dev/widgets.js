@@ -48,11 +48,11 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
   function setState(next: AuthState) {
     if (state === next) return;
     state = next;
-    for (const cb of stateListeners) { try { cb(state); } catch {} }
+    for (const cb of stateListeners) { try { cb(state); } catch { /* listener threw — isolate */ } }
   }
 
   function emitSecurity(event: SecurityEvent) {
-    for (const cb of secListeners) { try { cb(event); } catch {} }
+    for (const cb of secListeners) { try { cb(event); } catch { /* listener threw — isolate */ } }
     channel.postMessage({ type: "security-wipe", event });
   }
 
@@ -217,7 +217,7 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
       accessToken: fresh.accessToken, tokenType: fresh.tokenType,
       ensureFresh: async (force) => ensureFreshAccess(force),
       onRefresh: () => {},
-    }, { path, method: "PUT", body: form as any, timeoutMs: timeoutMs ?? cfg.timeouts.upload });
+    }, { path, method: "PUT", body: form as unknown as ArrayBuffer, timeoutMs: timeoutMs ?? cfg.timeouts.upload });
   }
 
   async function getRoles() {
@@ -225,7 +225,7 @@ export async function createWorkerCore(cfg: ResolvedConfig): Promise<WorkerCore>
     try {
       const p = decodeJwtPayload(fresh.accessToken);
       if (Array.isArray(p.roles)) return (p.roles as unknown[]).filter((r): r is string => typeof r === "string");
-      const r = (p.realm_access as any)?.roles;
+      const r = (p.realm_access as { roles?: unknown } | undefined)?.roles;
       if (Array.isArray(r)) return (r as unknown[]).filter((x): x is string => typeof x === "string");
       return [];
     } catch { return []; }

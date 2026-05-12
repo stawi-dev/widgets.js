@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchT } from "../../worker/fetchWithTimeout.js";
-import { AuthError } from "../../shared/errors.js";
 
 describe("fetchT", () => {
   let origFetch: typeof fetch;

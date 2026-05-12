@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { openChannel, withRefreshLock } from "../../worker/coordination.js";
 
 describe("coordination", () => {

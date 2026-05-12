@@ -31,6 +31,16 @@ export default tseslint.config(
     },
   },
   {
+    // Test files routinely cast mocks + fixtures to `any` to escape
+    // the production type system; that flexibility is the point of
+    // having tests. Disable the strict typing rule here so the lint
+    // isn't enforced on inherently-untyped mock plumbing.
+    files: ["**/__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
     ignores: ["**/dist/**", "**/node_modules/**", "**/.turbo/**"],
   },
 );
