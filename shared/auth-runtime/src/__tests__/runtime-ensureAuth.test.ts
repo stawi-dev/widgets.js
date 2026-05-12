@@ -3,8 +3,7 @@ import { _setDiscoveryForTest, clearDiscoveryCache } from "../shared/discovery.j
 
 // Module-level mocks — installed via vi.mock before importing the runtime.
 const attemptFedCMMock = vi.fn();
-const openLoginUrlMock = vi.fn();
-const runOAuthPopupMock = vi.fn();
+const startRedirectMock = vi.fn();
 
 vi.mock("../shared/fedcm.js", async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
@@ -15,12 +14,9 @@ vi.mock("../shared/fedcm.js", async (orig) => {
   };
 });
 
-vi.mock("../login-url.js", () => ({
-  openLoginUrl: (...args: unknown[]) => openLoginUrlMock(...args),
-}));
-
-vi.mock("../oauth-popup.js", () => ({
-  runOAuthPopup: (...args: unknown[]) => runOAuthPopupMock(...args),
+vi.mock("../oauth-redirect.js", () => ({
+  startRedirect: (...args: unknown[]) => startRedirectMock(...args),
+  completeRedirect: vi.fn(),
 }));
 
 // Import after mocks are registered.
@@ -44,8 +40,10 @@ beforeEach(() => {
   });
   globalThis.fetch = vi.fn();
   attemptFedCMMock.mockReset();
-  openLoginUrlMock.mockReset();
-  runOAuthPopupMock.mockReset();
+  startRedirectMock.mockReset();
+  // startRedirect normally never resolves (page navigates away). We
+  // resolve with undefined so the await in ensureAuthenticated returns.
+  startRedirectMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -55,64 +53,29 @@ afterEach(() => {
   }
 });
 
-describe("ensureAuthenticated() active-mode + login_url fallback", () => {
+describe("ensureAuthenticated() active-mode + redirect fallback", () => {
   it("first attempt uses active mode", async () => {
-    // Return dismissed so we don't try to complete anything.
     attemptFedCMMock.mockResolvedValue({ kind: "dismissed" });
-    runOAuthPopupMock.mockResolvedValue(undefined);
 
     const rt = createAuthRuntime({
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
-      // Note: don't set skipFedCM so the runtime actually calls attemptFedCM
     });
     await waitForState(rt, "unauthenticated");
 
     await rt.ensureAuthenticated();
 
-    // Find the active-mode call (the passive idle probe uses mediation:"silent",mode:"passive").
     const activeCall = attemptFedCMMock.mock.calls.find(
       (call) => call[1]?.mode === "active" && call[1]?.mediation === "optional",
     );
     expect(activeCall).toBeDefined();
-    // Fell through to popup since outcome was "dismissed".
-    expect(runOAuthPopupMock).toHaveBeenCalled();
+    expect(startRedirectMock).toHaveBeenCalled();
     rt.destroy();
   });
 
-  it("idle probe uses mode:passive explicitly", async () => {
-    attemptFedCMMock.mockResolvedValue({ kind: "not-allowed" });
-    const rt = createAuthRuntime({
-      clientId: "c",
-      idpBaseUrl: "https://i",
-      apiBaseUrl: "https://a",
-    });
-    await waitForState(rt, "unauthenticated");
-    // Allow the idle probe setTimeout(run, 0) to execute
-    await new Promise((r) => setTimeout(r, 20));
-
-    const passiveCall = attemptFedCMMock.mock.calls.find(
-      (call) => call[1]?.mediation === "silent",
-    );
-    expect(passiveCall).toBeDefined();
-    expect(passiveCall?.[1]?.mode).toBe("passive");
-    rt.destroy();
-  });
-
-  it("on no-session with loginUrl, opens login URL and retries FedCM once", async () => {
-    // Dispatch by mediation so the idle probe (silent) and ensureAuthenticated
-    // (optional → required) are handled independently.
-    attemptFedCMMock.mockImplementation(async (_cfg: unknown, opts: { mediation: string }) => {
-      if (opts.mediation === "silent") return { kind: "not-allowed" };
-      if (opts.mediation === "optional") {
-        return { kind: "no-session", loginUrl: "https://i/login" };
-      }
-      // "required" retry after login
-      return { kind: "dismissed" };
-    });
-    openLoginUrlMock.mockResolvedValue(undefined);
-    runOAuthPopupMock.mockResolvedValue(undefined);
+  it("falls through to redirect on no-session (with or without loginUrl)", async () => {
+    attemptFedCMMock.mockResolvedValue({ kind: "no-session", loginUrl: "https://i/login" });
 
     const rt = createAuthRuntime({
       clientId: "c",
@@ -122,22 +85,15 @@ describe("ensureAuthenticated() active-mode + login_url fallback", () => {
     await waitForState(rt, "unauthenticated");
 
     await rt.ensureAuthenticated();
-
-    expect(openLoginUrlMock).toHaveBeenCalledWith(
-      expect.objectContaining({ idpBaseUrl: "https://i" }),
-      "https://i/login",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-    // A retry with mediation:"required", mode:"active" must have fired.
-    const retry = attemptFedCMMock.mock.calls.find(
-      (call) => call[1]?.mediation === "required" && call[1]?.mode === "active",
-    );
-    expect(retry).toBeDefined();
+    // The redirect handles "needs login" server-side — we no longer
+    // open a separate IdP-login popup.
+    expect(startRedirectMock).toHaveBeenCalled();
     rt.destroy();
   });
 
-  it("on aborted outcome, throws OAUTH_POPUP_CLOSED (user cancelled)", async () => {
+  it("on aborted outcome (user dismissed FedCM in active mode), throws OAUTH_FAILED and skips redirect", async () => {
     attemptFedCMMock.mockResolvedValue({ kind: "aborted" });
+
     const rt = createAuthRuntime({
       clientId: "c",
       idpBaseUrl: "https://i",
@@ -145,16 +101,13 @@ describe("ensureAuthenticated() active-mode + login_url fallback", () => {
     });
     await waitForState(rt, "unauthenticated");
 
-    await expect(rt.ensureAuthenticated()).rejects.toMatchObject({
-      code: "OAUTH_POPUP_CLOSED",
-    });
-    expect(runOAuthPopupMock).not.toHaveBeenCalled();
+    await expect(rt.ensureAuthenticated()).rejects.toMatchObject({ code: "OAUTH_FAILED" });
+    expect(startRedirectMock).not.toHaveBeenCalled();
     rt.destroy();
   });
 
-  it("on no-session without loginUrl, falls through to OAuth popup", async () => {
-    attemptFedCMMock.mockResolvedValue({ kind: "no-session" });
-    runOAuthPopupMock.mockResolvedValue(undefined);
+  it("on any non-token FedCM outcome, falls through to redirect", async () => {
+    attemptFedCMMock.mockResolvedValue({ kind: "unsupported" });
 
     const rt = createAuthRuntime({
       clientId: "c",
@@ -164,8 +117,7 @@ describe("ensureAuthenticated() active-mode + login_url fallback", () => {
     await waitForState(rt, "unauthenticated");
 
     await rt.ensureAuthenticated();
-    expect(openLoginUrlMock).not.toHaveBeenCalled();
-    expect(runOAuthPopupMock).toHaveBeenCalled();
+    expect(startRedirectMock).toHaveBeenCalled();
     rt.destroy();
   });
 });
@@ -173,7 +125,6 @@ describe("ensureAuthenticated() active-mode + login_url fallback", () => {
 describe("onFedcmEvent telemetry", () => {
   it("fires attempt+outcome events during ensureAuthenticated", async () => {
     attemptFedCMMock.mockResolvedValue({ kind: "dismissed" });
-    runOAuthPopupMock.mockResolvedValue(undefined);
 
     const rt = createAuthRuntime({
       clientId: "c",
@@ -186,7 +137,6 @@ describe("onFedcmEvent telemetry", () => {
 
     await rt.ensureAuthenticated();
 
-    // At minimum the attempt + outcome pair for the active call fires.
     expect(
       events.some(
         (e) =>
@@ -205,36 +155,8 @@ describe("onFedcmEvent telemetry", () => {
     rt.destroy();
   });
 
-  it("fires login-url-opened event when login_url fallback triggers", async () => {
-    attemptFedCMMock.mockImplementation(async (_cfg: unknown, opts: { mediation: string }) => {
-      if (opts.mediation === "silent") return { kind: "not-allowed" };
-      if (opts.mediation === "optional") {
-        return { kind: "no-session", loginUrl: "https://i/login" };
-      }
-      return { kind: "dismissed" };
-    });
-    openLoginUrlMock.mockResolvedValue(undefined);
-    runOAuthPopupMock.mockResolvedValue(undefined);
-
-    const rt = createAuthRuntime({
-      clientId: "c",
-      idpBaseUrl: "https://i",
-      apiBaseUrl: "https://a",
-    });
-    await waitForState(rt, "unauthenticated");
-    const events: Array<{ type: string; url?: string }> = [];
-    rt.onFedcmEvent((e) => events.push(e as { type: string; url?: string }));
-
-    await rt.ensureAuthenticated();
-    expect(events.some((e) => e.type === "login-url-opened" && e.url === "https://i/login")).toBe(
-      true,
-    );
-    rt.destroy();
-  });
-
   it("unsubscribe stops future events", async () => {
     attemptFedCMMock.mockResolvedValue({ kind: "dismissed" });
-    runOAuthPopupMock.mockResolvedValue(undefined);
 
     const rt = createAuthRuntime({
       clientId: "c",
