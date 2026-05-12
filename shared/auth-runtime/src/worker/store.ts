@@ -29,7 +29,9 @@ function tx(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
 
 function isValid(v: unknown): v is PersistedShape {
   if (!v || typeof v !== "object") return false;
-  const o = v as any;
+  const o = v as Record<string, unknown> & {
+    wrappedRT?: { iv?: { byteLength?: number } | unknown; ciphertext?: { byteLength?: number } | unknown };
+  };
   // Check if wrappedRT exists and has iv/ciphertext - indexedDB may change their types
   if (!o.wrappedRT || typeof o.wrappedRT !== "object") return false;
   const iv = o.wrappedRT.iv;

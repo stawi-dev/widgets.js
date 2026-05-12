@@ -11,7 +11,15 @@ export type RefreshOutcome =
   | { outcome: "reuse_detected" }
   | { outcome: "network_error"; error: AuthError };
 
-function parseTokenBody(data: any): TokenSet {
+interface TokenEndpointResponse {
+  access_token?: unknown;
+  refresh_token?: unknown;
+  expires_in?: unknown;
+  token_type?: unknown;
+  id_token?: unknown;
+}
+
+function parseTokenBody(data: TokenEndpointResponse): TokenSet {
   const accessToken = data.access_token as string;
   const refreshToken = data.refresh_token as string;
   const expiresIn = (data.expires_in as number) ?? 300;

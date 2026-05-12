@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateDpopKey, exportDpopPublicJwk } from "../../worker/crypto.js";
+import { generateDpopKey } from "../../worker/crypto.js";
 import { proof, rememberNonce, makeDpopContext } from "../../worker/dpop.js";
 
 function decodeJwt(jwt: string) {
