@@ -132,8 +132,11 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     async (file: File) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
+      // /profile prefix routes through the gateway URLRewrite to the
+      // service-profile backend mux; see profile-service.ts for the
+      // full convention writeup.
       const resp = await runtime.upload<{ data: { properties: { au_avater_uri?: string } } }>(
-        `/profile.v1.ProfileService/UpdateAvatar/${profileId}`,
+        `/profile/profile.v1.ProfileService/UpdateAvatar/${profileId}`,
         file,
       );
       const url = resp.data?.properties?.au_avater_uri;
