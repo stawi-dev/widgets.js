@@ -82,19 +82,36 @@ jobs:
               npm version "$VERSION" --no-git-tag-version --allow-same-version
           done
 
-      # Publish via npm directly (not pnpm publish) so OIDC trusted
-      # publishing kicks in. pnpm 9 doesn't pass --provenance through
-      # to the underlying npm CLI, and trusted publishing requires the
-      # provenance attestation flow. --provenance is what triggers npm
-      # to look for the OIDC token (no NPM_TOKEN env in scope here).
-      - name: Publish to npm via trusted publishing
+      # Two-step publish: pack first with pnpm (rewrites `workspace:*`
+      # specifiers to the resolved version), then publish the tarballs
+      # with the npm CLI so the OIDC trusted-publishing handshake +
+      # provenance attestation actually run. `npm publish` from a source
+      # directory leaves `workspace:*` literally in the tarball — that
+      # bricked @stawi/profile@1.1.1, which shipped an unresolvable
+      # `"@stawi/auth-runtime": "workspace:*"` dependency. pnpm 9 (this
+      # workspace's packageManager) doesn't forward --provenance to
+      # `npm publish`, so we can't just use `pnpm publish` either.
+      #
+      # Order: pack ALL packages into RUNNER_TEMP first, then publish
+      # them from that staging dir. Keeps the source tree clean and
+      # makes the publish loop's exit behaviour easy to reason about.
+      - name: Pack packages (rewrites workspace: protocols)
         run: |
+          mkdir -p "$RUNNER_TEMP/tarballs"
           for pkg in packages/*/package.json shared/*/package.json; do
             [ -f "$pkg" ] || continue
             private=$(node -p "require('./$pkg').private || false")
             [ "$private" = "true" ] && continue
             dir=$(dirname "$pkg")
-            (cd "$dir" && npm publish --provenance --access public)
+            (cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          done
+          ls -la "$RUNNER_TEMP/tarballs"
+
+      - name: Publish tarballs via trusted publishing
+        run: |
+          for tarball in "$RUNNER_TEMP/tarballs"/*.tgz; do
+            [ -f "$tarball" ] || continue
+            npm publish "$tarball" --provenance --access public
           done
 
       - name: Create GitHub Release
