@@ -69,6 +69,7 @@ describe("createAuthRuntime", () => {
     });
     const rt = createAuthRuntime({
       clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
       fedcmConfigUrl: "/.well-known/web-identity",
       skipFedCM: true,
     });

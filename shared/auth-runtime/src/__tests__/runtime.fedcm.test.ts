@@ -43,7 +43,7 @@ function mockFetchForFedcm(loginUrl = "https://i/login") {
   // (b) does a token exchange. Route them with a URL matcher.
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    if (url.endsWith("/.well-known/web-identity")) {
+    if (url.endsWith("/fedcm/config.json")) {
       return new Response(JSON.stringify({ login_url: loginUrl }), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -105,6 +105,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
     });
     await waitForState(rt, "unauthenticated");
     // requestIdleCallback is absent in jsdom → runtime uses setTimeout(run, 0).
@@ -140,6 +141,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
     });
     await waitForState(rt, "unauthenticated");
     // Let the idle probe run.
@@ -174,6 +176,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
     });
     await waitForState(rt, "unauthenticated");
 
@@ -182,7 +185,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
     expect(globalThis.__TEST_FEDCM.calls.preventSilentAccess).toBe(1);
     expect(globalThis.__TEST_FEDCM.calls.disconnect.length).toBe(1);
     expect(globalThis.__TEST_FEDCM.calls.disconnect[0]).toMatchObject({
-      configURL: "https://i/.well-known/web-identity",
+      configURL: "https://i/fedcm/config.json",
       clientId: "c",
     });
     rt.destroy();
@@ -200,6 +203,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
     });
     const events: Array<{ type: string; [k: string]: unknown }> = [];
     rt.onFedcmEvent((e) => events.push(e as { type: string }));
@@ -278,6 +282,7 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
       clientId: "c",
       idpBaseUrl: "https://i",
       apiBaseUrl: "https://a",
+      fedcmBaseUrl: "https://i",
     });
     await waitForState(rt, "unauthenticated");
 

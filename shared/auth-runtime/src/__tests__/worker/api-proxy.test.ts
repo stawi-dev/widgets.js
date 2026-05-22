@@ -6,7 +6,8 @@ import { generateDpopKey } from "../../worker/crypto.js";
 
 const cfg = {
   clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a",
-  redirectUri: "https://r/cb", scopes: [], fedcmConfigUrl: "/x", skipFedCM: true,
+  redirectUri: "https://r/cb", scopes: [],
+  fedcmBaseUrl: "https://i", fedcmConfigUrl: "/x", skipFedCM: true,
   timeouts: { discovery: 1000, token: 1000, api: 1000, upload: 1000 },
 } as any;
 

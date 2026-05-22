@@ -5,6 +5,7 @@ import { _setDiscoveryForTest, clearDiscoveryCache } from "../../shared/discover
 const cfg = {
   clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a",
   redirectUri: "https://r/cb", scopes: ["openid","offline_access"],
+  fedcmBaseUrl: "https://i",
   fedcmConfigUrl: "/.well-known/web-identity", skipFedCM: true,
   timeouts: { discovery: 1000, token: 1000, api: 1000, upload: 1000 },
 };

@@ -67,11 +67,11 @@ export function isFedCMSupported(): boolean {
 }
 
 export async function probeFedCMConfig(cfg: ResolvedConfig): Promise<FedCMConfigProbe> {
-  const key = cfg.idpBaseUrl + cfg.fedcmConfigUrl;
+  const key = cfg.fedcmBaseUrl + cfg.fedcmConfigUrl;
   const cached = readProbeCache(key);
   if (cached) return cached;
 
-  const url = `${cfg.idpBaseUrl}${cfg.fedcmConfigUrl}`;
+  const url = `${cfg.fedcmBaseUrl}${cfg.fedcmConfigUrl}`;
   let probe: FedCMConfigProbe = { available: false };
   try {
     const r = await fetchT(
@@ -110,7 +110,7 @@ export async function attemptFedCM(
   if (!probe.available) return { kind: "unsupported" };
 
   const provider: IdentityProviderConfig = {
-    configURL: `${cfg.idpBaseUrl}${cfg.fedcmConfigUrl}`,
+    configURL: `${cfg.fedcmBaseUrl}${cfg.fedcmConfigUrl}`,
     clientId: cfg.clientId,
     nonce: opts.nonce,
     fields: cfg.fedcm.fields,

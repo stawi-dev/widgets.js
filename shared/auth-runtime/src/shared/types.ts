@@ -5,10 +5,27 @@ export type AuthStateCallback = (state: AuthState) => void;
 
 export interface AuthConfig {
   clientId: string;
+  /**
+   * OAuth2 issuer / Hydra public base URL. Used for OIDC discovery, the
+   * authorize redirect, and id_token iss claim validation. Distinct from the
+   * FedCM origin: in the Stawi stack Hydra runs at oauth2.stawi.org while the
+   * FedCM endpoints are served by the auth service at accounts.stawi.org.
+   */
   idpBaseUrl?: string;
   apiBaseUrl?: string;
   redirectUri?: string;
   scopes?: string[];
+  /**
+   * Origin that serves the FedCM IdP endpoints (/.well-known/web-identity and
+   * /fedcm/*). Defaults to https://accounts.stawi.org. Leave undefined when
+   * the FedCM endpoints live on the same host as Hydra.
+   */
+  fedcmBaseUrl?: string;
+  /**
+   * Path of the FedCM configURL on `fedcmBaseUrl`. Defaults to
+   * /fedcm/config.json. The path is what Chrome fetches as the configURL —
+   * NOT the discovery pointer at /.well-known/web-identity.
+   */
   fedcmConfigUrl?: string;
   installationId?: string;
   skipFedCM?: boolean;
@@ -28,6 +45,7 @@ export interface ResolvedConfig {
   apiBaseUrl: string;
   redirectUri: string;
   scopes: string[];
+  fedcmBaseUrl: string;
   fedcmConfigUrl: string;
   installationId?: string;
   skipFedCM: boolean;

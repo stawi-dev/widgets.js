@@ -217,7 +217,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
         const IC = (globalThis as { IdentityCredential?: IdentityCredentialConstructor }).IdentityCredential;
         if (IC && typeof IC.disconnect === "function") {
           await IC.disconnect({
-            configURL: `${cfg.idpBaseUrl}${cfg.fedcmConfigUrl}`,
+            configURL: `${cfg.fedcmBaseUrl}${cfg.fedcmConfigUrl}`,
             clientId: cfg.clientId,
           });
         }

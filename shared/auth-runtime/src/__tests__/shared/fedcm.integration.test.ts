@@ -11,6 +11,7 @@ const baseCfg: ResolvedConfig = {
   apiBaseUrl: "https://a",
   redirectUri: "https://r/cb",
   scopes: ["openid"],
+  fedcmBaseUrl: "https://i",
   fedcmConfigUrl: "/.well-known/web-identity",
   skipFedCM: false,
   timeouts: { discovery: 1000, token: 1000, api: 1000, upload: 1000 },
