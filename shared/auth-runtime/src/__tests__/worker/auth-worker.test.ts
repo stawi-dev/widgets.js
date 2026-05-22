@@ -16,6 +16,11 @@ beforeEach(() => {
     dpop_signing_alg_values_supported: ["ES256"],
   });
   globalThis.fetch = vi.fn();
+  // Reset fake-indexeddb between tests; createWorkerCore loads the prior
+  // session on init now that keys round-trip, so without this each test
+  // starts in the previous test's authenticated state.
+  const idb = (globalThis as unknown as { indexedDB?: { _databases?: Map<unknown, unknown> } }).indexedDB;
+  if (idb?._databases) idb._databases = new Map();
 });
 
 describe("worker core", () => {
