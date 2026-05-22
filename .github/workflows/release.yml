@@ -11,6 +11,11 @@ concurrency:
 
 permissions:
   contents: write
+  # Required for npm Trusted Publishing — the runner mints an OIDC token
+  # that npm verifies against the trusted-publisher rule configured on
+  # each package (stawi-dev/widgets.js, workflow release.yml). No
+  # long-lived NPM_TOKEN secret is involved.
+  id-token: write
 
 jobs:
   release:
@@ -24,9 +29,17 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Trusted Publishing + --provenance requires npm >= 11.5.1.
+          # Node 22 ships with npm 10.9, so we bump npm explicitly below.
+          node-version: 22
           cache: pnpm
           registry-url: "https://registry.npmjs.org"
+
+      # npm bundled with Node 22 is 10.9.x; OIDC trusted publishing
+      # requires 11.5.1+. Upgrade in place — cheaper than chasing a
+      # whole new Node release every time the bundle lags.
+      - name: Upgrade npm to OIDC-capable version
+        run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
 
@@ -44,40 +57,46 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.ref_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       # Set each publishable package's version to match the git tag
       # so npm publish uses the tag version, not the static package.json value.
       - name: Stamp package versions from tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           for pkg in packages/*/package.json shared/*/package.json; do
             [ -f "$pkg" ] || continue
             private=$(node -p "require('./$pkg').private || false")
             [ "$private" = "true" ] && continue
             pnpm --filter "$(node -p "require('./$pkg').name")" exec \
-              npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+              npm version "$VERSION" --no-git-tag-version --allow-same-version
           done
 
-      - name: Publish to npm
+      # Publish via npm directly (not pnpm publish) so OIDC trusted
+      # publishing kicks in. pnpm 9 doesn't pass --provenance through
+      # to the underlying npm CLI, and trusted publishing requires the
+      # provenance attestation flow. --provenance is what triggers npm
+      # to look for the OIDC token (no NPM_TOKEN env in scope here).
+      - name: Publish to npm via trusted publishing
         run: |
           for pkg in packages/*/package.json shared/*/package.json; do
             [ -f "$pkg" ] || continue
             private=$(node -p "require('./$pkg').private || false")
             [ "$private" = "true" ] && continue
-            name=$(node -p "require('./$pkg').name")
             dir=$(dirname "$pkg")
-            pnpm --filter "$name" publish --access public --no-git-checks
+            (cd "$dir" && npm publish --provenance --access public)
           done
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        run: |
-          if gh release view "${{ github.ref_name }}" &>/dev/null; then
-            echo "Release ${{ github.ref_name }} already exists, skipping."
-          else
-            gh release create "${{ github.ref_name }}" --generate-notes
-          fi
         env:
+          TAG: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping."
+          else
+            gh release create "$TAG" --generate-notes
+          fi
