@@ -2,6 +2,11 @@
   "name": "@stawi/auth-runtime",
   "version": "1.1.0",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stawi-dev/widgets.js.git",
+    "directory": "shared/auth-runtime"
+  },
   "files": [
     "dist"
   ],
