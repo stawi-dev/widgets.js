@@ -73,4 +73,50 @@ describe("store", () => {
     });
     expect(await loadSession("ns-x")).toBeNull();
   });
+
+  // Force every branch of the key-shape validators so coverage stays above
+  // the 80% threshold. Each variant writes a row that satisfies the
+  // wrappedRT check but breaks exactly one key-shape invariant, mirroring
+  // what a v1.1.0 (pre-fix) persisted row looks like to the v1.1.1 reader.
+  async function putRaw(namespace: string, value: unknown): Promise<void> {
+    await new Promise<void>((resolve) => {
+      const req = indexedDB.open("stawi-auth-v1", 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("sessions");
+      req.onsuccess = () => {
+        const tx = req.result.transaction("sessions", "readwrite");
+        tx.objectStore("sessions").put(value, namespace);
+        tx.oncomplete = () => resolve();
+      };
+    });
+  }
+
+  it("rejects pre-fix sessions that lack wrapKey + dpopKey", async () => {
+    // The exact shape v1.1.0 saveSession produced before the fix.
+    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    await putRaw("ns-legacy", { wrappedRT, lastIdToken: "id", updatedAt: 1 });
+    expect(await loadSession("ns-legacy")).toBeNull();
+  });
+
+  it("rejects a session whose wrapKey is missing the expected surface", async () => {
+    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    const goodPair = await generateDpopKey();
+    await putRaw("ns-bad-wk", {
+      wrappedRT,
+      wrapKey: { type: 42 },
+      dpopKey: goodPair,
+    });
+    expect(await loadSession("ns-bad-wk")).toBeNull();
+  });
+
+  it("rejects a session whose dpopKey isn't a full key pair", async () => {
+    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    const wk = await generateWrapKey();
+    const partialPair = (await generateDpopKey()) as unknown as { privateKey: CryptoKey };
+    await putRaw("ns-bad-kp", {
+      wrappedRT,
+      wrapKey: wk,
+      dpopKey: { privateKey: partialPair.privateKey },
+    });
+    expect(await loadSession("ns-bad-kp")).toBeNull();
+  });
 });
