@@ -89,7 +89,7 @@ describe("ProfileContext", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/profile.v1.ProfileService/GetById",
+      "/profile/profile.v1.ProfileService/GetById",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ id: "user-1" }),

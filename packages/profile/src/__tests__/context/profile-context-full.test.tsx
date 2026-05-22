@@ -83,7 +83,7 @@ describe("ProfileContext - full coverage", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/profile.v1.ProfileService/Update",
+      "/profile/profile.v1.ProfileService/Update",
       expect.objectContaining({ method: "POST" }),
     );
     expect(result.current.state.profile?.name).toBe("Jane Doe");
@@ -228,7 +228,7 @@ describe("ProfileContext - full coverage", () => {
     });
 
     expect(mockUpload).toHaveBeenCalledWith(
-      "/profile.v1.ProfileService/UpdateAvatar/user-1",
+      "/profile/profile.v1.ProfileService/UpdateAvatar/user-1",
       file,
     );
     expect(result.current.state.profile?.picture).toBe(

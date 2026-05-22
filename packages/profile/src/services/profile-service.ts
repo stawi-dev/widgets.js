@@ -6,7 +6,19 @@ import type {
   ContactType,
 } from "../types.js";
 
-const SVC = "/profile.v1.ProfileService";
+// Antinvestor cluster convention: every backend is reachable via a
+// single `/<service>` PathPrefix on api.stawi.{org,dev,im}. The
+// gateway URLRewrites the prefix to "/" before the request reaches
+// the backend mux, which serves both REST and Connect RPC handlers.
+// So Connect RPC calls go through the same `/profile` prefix as
+// REST — there is NO separate `/profile.v1.ProfileService` route.
+//
+// Previously this constant was just `/profile.v1.ProfileService` and
+// the call only worked via Envoy Gateway's non-spec string-prefix
+// match of the existing `/profile` rule (producing a malformed
+// `.v1.ProfileService/<method>` backend path after URLRewrite).
+// Fixed by including `/profile` in the SVC so the path is canonical.
+const SVC = "/profile/profile.v1.ProfileService";
 
 function idempotencyKey(): string {
   return crypto.randomUUID();
