@@ -42,6 +42,21 @@ export interface ProfileResponse {
   data: ProfileObject;
 }
 
+/**
+ * Shape returned by GET /profile/public/user/info — the REST handler
+ * on service-profile that resolves the current user from the JWT
+ * subject (no profile_id required from the client). Strictly fewer
+ * fields than the Connect RPC GetByIdResponse: just enough for the
+ * widget's initial render. Mutations (Update, AddContact, ...) still
+ * flow through Connect RPC.
+ */
+export interface UserInfoResponse {
+  sub: string;
+  name?: string;
+  url?: string;
+  contacts: ContactObject[];
+}
+
 export interface AddContactResponse {
   data: ProfileObject;
   verification_id: string;

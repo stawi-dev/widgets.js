@@ -4,6 +4,7 @@ import {
   type ContactObject,
   type ProfileData,
   type ProfileObject,
+  type UserInfoResponse,
 } from "../types.js";
 import { sanitizePictureUrl } from "../utils/sanitize-picture-url.js";
 
@@ -52,6 +53,34 @@ export function profileObjectToProfileData(
     picture,
     language,
     country,
+    contacts,
+  };
+}
+
+/**
+ * Maps the GET /profile/public/user/info response into the same
+ * ProfileData shape the widget renders from. The REST endpoint
+ * returns fewer fields than the Connect RPC GetById response —
+ * `language` and `country` are not present today and will surface as
+ * `undefined`. Add them to /user/info on service-profile when the
+ * widget needs them on first render; for now those fields can be
+ * lazy-loaded via a Connect RPC GetById call after the initial mount
+ * if required.
+ */
+export function userInfoToProfileData(resp: UserInfoResponse): ProfileData {
+  const name = resp.name ?? "";
+  const picture = sanitizePictureUrl(resp.url || undefined);
+  const contactsIn = resp.contacts ?? [];
+  const firstVerifiedEmail = contactsIn.find(
+    (c) => c.type === ContactType.EMAIL && c.verified,
+  );
+  const email = firstVerifiedEmail?.detail ?? "";
+  const contacts = contactsIn.map((c) => mapContact(c, email));
+  return {
+    id: resp.sub,
+    name,
+    email,
+    picture,
     contacts,
   };
 }

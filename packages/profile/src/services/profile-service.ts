@@ -2,6 +2,7 @@ import type { AuthRuntime } from "@stawi/auth-runtime";
 import type {
   ProfileResponse,
   AddContactResponse,
+  UserInfoResponse,
   VerificationResponse,
   ContactType,
 } from "../types.js";
@@ -12,13 +13,16 @@ import type {
 // the backend mux, which serves both REST and Connect RPC handlers.
 // So Connect RPC calls go through the same `/profile` prefix as
 // REST — there is NO separate `/profile.v1.ProfileService` route.
-//
-// Previously this constant was just `/profile.v1.ProfileService` and
-// the call only worked via Envoy Gateway's non-spec string-prefix
-// match of the existing `/profile` rule (producing a malformed
-// `.v1.ProfileService/<method>` backend path after URLRewrite).
-// Fixed by including `/profile` in the SVC so the path is canonical.
 const SVC = "/profile/profile.v1.ProfileService";
+
+// REST surface on service-profile. /public/user/info reads the JWT
+// `sub` claim and returns the matching profile — no profile_id is
+// needed from the client. Cheaper than the Connect RPC `GetById`
+// path: it's a simple GET (no CORS preflight, no Idempotency-Key)
+// and ships a smaller payload tailored to "show me the current
+// user" rather than the full proto. Used by ProfileProvider on
+// initial load; mutations still flow through Connect RPC below.
+const REST = "/profile/public";
 
 function idempotencyKey(): string {
   return crypto.randomUUID();
@@ -44,6 +48,23 @@ export function getProfile(
   profileId: string,
 ): Promise<ProfileResponse> {
   return post(rt, "GetById", { id: profileId }, true);
+}
+
+/**
+ * Fetches the current user's profile via the REST endpoint that
+ * resolves identity from the JWT subject claim. Preferred over
+ * `getProfile` for the initial mount because:
+ *
+ *  - Simple GET — no CORS preflight, no Idempotency-Key plumbing.
+ *  - No need to derive `profile_id` from claims first (one round trip
+ *    instead of two when the client doesn't already have it).
+ *  - Smaller payload (sub/name/url/contacts) — exactly what the
+ *    widget consumes for first render.
+ */
+export function getCurrentProfile(
+  rt: AuthRuntime,
+): Promise<UserInfoResponse> {
+  return rt.fetch<UserInfoResponse>(`${REST}/user/info`, { method: "GET" });
 }
 
 export function updateProfile(

@@ -10,7 +10,7 @@ import type { ProfileData, ProfileState, ProfileAction } from "../types.js";
 import { ContactType } from "../types.js";
 import { useAuth } from "../hooks/use-auth.js";
 import {
-  getProfile,
+  getCurrentProfile,
   updateProfile as rpcUpdate,
   addContact as rpcAdd,
   createContactVerification,
@@ -20,6 +20,7 @@ import {
 import {
   profileObjectToProfileData,
   uiUpdatesToProtoProperties,
+  userInfoToProfileData,
 } from "../services/profile-mapper.js";
 
 const initialState: ProfileState = {
@@ -99,11 +100,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "LOADING" });
     (async () => {
       try {
-        const claims = await runtime.getClaims();
-        const profileId = claims.sub as string;
-        if (!profileId) throw new Error("JWT missing sub claim");
-        const res = await getProfile(runtime, profileId);
-        if (!cancelled) dispatch({ type: "LOADED", profile: profileObjectToProfileData(res.data) });
+        // GET /profile/public/user/info — server resolves identity from
+        // the JWT subject claim, so no profile_id is needed from the
+        // client. Cheaper than the Connect RPC `GetById` round trip
+        // we used pre-1.3.0 (no CORS preflight, no Idempotency-Key).
+        const userInfo = await getCurrentProfile(runtime);
+        if (!cancelled) dispatch({ type: "LOADED", profile: userInfoToProfileData(userInfo) });
       } catch (err) {
         if (!cancelled) {
           dispatch({

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ProfileProvider } from "../../context/profile-context.js";
 import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
 import { useProfile } from "../../hooks/use-profile.js";
-import { ContactType, ProfileType } from "../../types.js";
+import { ContactType } from "../../types.js";
 
 const mockFetch = vi.fn();
 const mockUpload = vi.fn();
@@ -40,27 +40,24 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-const mockProtoProfile = {
-  data: {
-    id: "user-1",
-    type: ProfileType.PERSON,
-    properties: {
-      au_name: "Jane",
-      language: "en",
+// Shape returned by GET /profile/public/user/info — the REST
+// endpoint the provider hits on mount. Sparser than the Connect RPC
+// GetByIdResponse (no `data` wrapper, no `properties` map; fields
+// are flat).
+const mockUserInfo = {
+  sub: "user-1",
+  name: "Jane",
+  url: undefined,
+  contacts: [
+    {
+      id: "c1",
+      type: ContactType.EMAIL,
+      detail: "jane@example.com",
+      verified: true,
+      communication_level: 0,
+      state: 0,
     },
-    contacts: [
-      {
-        id: "c1",
-        type: ContactType.EMAIL,
-        detail: "jane@example.com",
-        verified: true,
-        communication_level: 0,
-        state: 0,
-      },
-    ],
-    addresses: [],
-    state: 0,
-  },
+  ],
 };
 
 describe("ProfileContext", () => {
@@ -77,8 +74,8 @@ describe("ProfileContext", () => {
     expect(result.current.state.loading).toBe(true);
   });
 
-  it("loads profile via ConnectRPC GetById", async () => {
-    mockFetch.mockResolvedValueOnce(mockProtoProfile);
+  it("loads the current profile via GET /profile/public/user/info", async () => {
+    mockFetch.mockResolvedValueOnce(mockUserInfo);
 
     const { result } = renderHook(() => useProfile(), { wrapper });
 
@@ -88,12 +85,12 @@ describe("ProfileContext", () => {
       expect(result.current.state.profile?.email).toBe("jane@example.com");
     });
 
+    // No POST, no Idempotency-Key, no preflight — just a plain GET
+    // whose path matches the REST handler on service-profile that
+    // resolves the user by JWT subject.
     expect(mockFetch).toHaveBeenCalledWith(
-      "/profile/profile.v1.ProfileService/GetById",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ id: "user-1" }),
-      }),
+      "/profile/public/user/info",
+      { method: "GET" },
     );
   });
 

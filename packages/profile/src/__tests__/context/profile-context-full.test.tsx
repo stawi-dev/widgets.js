@@ -39,6 +39,27 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
+// Initial load goes through GET /profile/public/user/info now (the
+// REST endpoint that resolves the user from the JWT subject). Update
+// + AddContact mutations still flow through Connect RPC and return
+// the full ProfileResponse shape (data: ProfileObject), so we keep
+// the proto-shaped fixture around for the mutation followup mocks.
+const mockUserInfo = {
+  sub: "user-1",
+  name: "Jane",
+  url: undefined,
+  contacts: [
+    {
+      id: "c1",
+      type: ContactType.EMAIL,
+      detail: "jane@example.com",
+      verified: true,
+      communication_level: 0,
+      state: 0,
+    },
+  ],
+};
+
 const mockProtoProfile = {
   data: {
     id: "user-1",
@@ -68,7 +89,7 @@ describe("ProfileContext - full coverage", () => {
   });
 
   async function renderAndLoad() {
-    mockFetch.mockResolvedValueOnce(mockProtoProfile);
+    mockFetch.mockResolvedValueOnce(mockUserInfo);
     const hook = renderHook(() => useProfile(), { wrapper });
     await waitFor(() => expect(hook.result.current.state.loading).toBe(false));
     return hook;
