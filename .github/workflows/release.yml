@@ -36,10 +36,17 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       # npm bundled with Node 22 is 10.9.x; OIDC trusted publishing
-      # requires 11.5.1+. Upgrade in place — cheaper than chasing a
-      # whole new Node release every time the bundle lags.
+      # requires 11.5.1+. `npm install -g npm@latest` on top of the
+      # existing npm sometimes leaves a half-replaced bundle (the
+      # node_modules tree for the new npm is partly seeded with the
+      # old npm's bundled deps and crashes with MODULE_NOT_FOUND on
+      # things like `promise-retry`). Wipe the bundled npm dir first,
+      # then install cleanly.
       - name: Upgrade npm to OIDC-capable version
-        run: npm install -g npm@latest
+        run: |
+          sudo rm -rf "$(npm root -g)/npm"
+          npm install -g npm@latest
+          npm --version
 
       - run: pnpm install --frozen-lockfile
 
