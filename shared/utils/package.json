@@ -2,6 +2,11 @@
   "name": "@stawi/shared-utils",
   "version": "0.0.1",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stawi-dev/widgets.js.git",
+    "directory": "shared/utils"
+  },
   "files": ["dist"],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
