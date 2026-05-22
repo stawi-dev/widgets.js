@@ -110,7 +110,7 @@ jobs:
       # Order: pack ALL packages into RUNNER_TEMP first, then publish
       # them from that staging dir. Keeps the source tree clean and
       # makes the publish loop's exit behaviour easy to reason about.
-      - name: Pack packages (rewrites workspace: protocols)
+      - name: "Pack packages (rewrites workspace: protocols)"
         run: |
           mkdir -p "$RUNNER_TEMP/tarballs"
           for pkg in packages/*/package.json shared/*/package.json; do
