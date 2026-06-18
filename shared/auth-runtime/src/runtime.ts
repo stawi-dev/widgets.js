@@ -9,7 +9,11 @@ import type {
 import { AuthError } from "./shared/errors.js";
 import { resolveConfig } from "./shared/config.js";
 import { getDiscovery } from "./shared/discovery.js";
-import { attemptFedCM, isFedCMSupported, probeFedCMConfig } from "./shared/fedcm.js";
+import {
+  attemptFedCM,
+  isFedCMSupported,
+  probeFedCMConfig,
+} from "./shared/fedcm.js";
 import { decodeJwtPayload } from "./shared/jwt.js";
 import { startRedirect, completeRedirect } from "./oauth-redirect.js";
 import { createWorkerCore, type WorkerCore } from "./worker/auth-worker.js";
@@ -22,7 +26,9 @@ function generateNonce(): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-async function resolveNonce(cfg: { fedcm: { nonce?: () => string | Promise<string> } }): Promise<string> {
+async function resolveNonce(cfg: {
+  fedcm: { nonce?: () => string | Promise<string> };
+}): Promise<string> {
   if (cfg.fedcm?.nonce) {
     const value = await cfg.fedcm.nonce();
     if (typeof value === "string" && value.length > 0) return value;
@@ -55,11 +61,19 @@ export interface AuthRuntime {
    * trigger or the `/auth/callback/` landing page.
    */
   completeRedirect(): Promise<{ returnTo: string }>;
-  fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }): Promise<T>;
+  fetch<T = unknown>(
+    path: string,
+    init?: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: string | ArrayBuffer | null;
+      timeoutMs?: number;
+    },
+  ): Promise<T>;
   upload<T = unknown>(path: string, file: File): Promise<T>;
   getRoles(): Promise<string[]>;
   getClaims(): Promise<Record<string, unknown>>;
-  logout(): Promise<void>;
+  logout(options?: { redirectToIdP?: boolean }): Promise<void>;
   onAuthStateChange(cb: (s: AuthState) => void): () => void;
   onSecurityEvent(cb: (e: SecurityEvent) => void): () => void;
   onFedcmEvent(cb: FedCMEventCallback): () => void;
@@ -74,13 +88,22 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   const runtimeAbort = new AbortController();
   const corePromise: Promise<WorkerCore> = createWorkerCore(cfg);
   let currentState: AuthState = "initializing";
-  void corePromise.then((c) => { c.onState((s) => { currentState = s; }); });
-  const version = typeof __STAWI_AUTH_VERSION__ === "string" ? __STAWI_AUTH_VERSION__ : "dev";
+  void corePromise.then((c) => {
+    c.onState((s) => {
+      currentState = s;
+    });
+  });
+  const version =
+    typeof __STAWI_AUTH_VERSION__ === "string" ? __STAWI_AUTH_VERSION__ : "dev";
 
   const fedcmListeners = new Set<FedCMEventCallback>();
   function emitFedcmEvent(event: FedCMEvent) {
     for (const cb of fedcmListeners) {
-      try { cb(event); } catch { /* listener error should not break runtime */ }
+      try {
+        cb(event);
+      } catch {
+        /* listener error should not break runtime */
+      }
     }
   }
 
@@ -91,8 +114,14 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       // Emit probe telemetry (best-effort).
       try {
         const probe = await probeFedCMConfig(cfg);
-        emitFedcmEvent({ type: "probe", available: probe.available, loginUrl: probe.loginUrl });
-      } catch { /* ignore */ }
+        emitFedcmEvent({
+          type: "probe",
+          available: probe.available,
+          loginUrl: probe.loginUrl,
+        });
+      } catch {
+        /* ignore */
+      }
       const nonce = await resolveNonce(cfg);
       emitFedcmEvent({ type: "attempt", mediation: "silent", mode: "passive" });
       const outcome = await attemptFedCM(cfg, {
@@ -112,7 +141,12 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
       }
       await core.completeFedcm(outcome.token, nonce).catch(() => {});
     };
-    if ("requestIdleCallback" in window) (window as unknown as { requestIdleCallback: (cb: () => void, o?: unknown) => void }).requestIdleCallback(run, { timeout: 1500 });
+    if ("requestIdleCallback" in window)
+      (
+        window as unknown as {
+          requestIdleCallback: (cb: () => void, o?: unknown) => void;
+        }
+      ).requestIdleCallback(run, { timeout: 1500 });
     else setTimeout(run, 0);
   }
 
@@ -161,7 +195,10 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
     await startRedirect(cfg, core);
   }
 
-  async function parse<T>(body: ArrayBuffer, headers: Record<string,string>): Promise<T> {
+  async function parse<T>(
+    body: ArrayBuffer,
+    headers: Record<string, string>,
+  ): Promise<T> {
     if (body.byteLength === 0) return undefined as T;
     const ct = headers["content-type"] ?? "";
     if (ct.includes("application/json")) {
@@ -172,62 +209,110 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
 
   return {
     version,
-    getState() { return currentState; },
+    getState() {
+      return currentState;
+    },
     onAuthStateChange(cb) {
       let off: (() => void) | null = null;
-      void corePromise.then(c => { off = c.onState(cb); });
-      return () => { off?.(); };
+      void corePromise.then((c) => {
+        off = c.onState(cb);
+      });
+      return () => {
+        off?.();
+      };
     },
     onSecurityEvent(cb) {
       let off: (() => void) | null = null;
-      void corePromise.then(c => { off = c.onSecurity(cb); });
-      return () => { off?.(); };
+      void corePromise.then((c) => {
+        off = c.onSecurity(cb);
+      });
+      return () => {
+        off?.();
+      };
     },
     onFedcmEvent(cb) {
       fedcmListeners.add(cb);
-      return () => { fedcmListeners.delete(cb); };
+      return () => {
+        fedcmListeners.delete(cb);
+      };
     },
     ensureAuthenticated,
     async completeRedirect() {
       const core = await corePromise;
       return completeRedirect(cfg, core);
     },
-    async fetch<T = unknown>(path: string, init?: { method?: string; headers?: Record<string,string>; body?: string | ArrayBuffer | null; timeoutMs?: number }) {
+    async fetch<T = unknown>(
+      path: string,
+      init?: {
+        method?: string;
+        headers?: Record<string, string>;
+        body?: string | ArrayBuffer | null;
+        timeoutMs?: number;
+      },
+    ) {
       const core = await corePromise;
-      const res = await core.fetch(path, { method: init?.method ?? "GET", headers: init?.headers, body: init?.body ?? null, timeoutMs: init?.timeoutMs });
+      const res = await core.fetch(path, {
+        method: init?.method ?? "GET",
+        headers: init?.headers,
+        body: init?.body ?? null,
+        timeoutMs: init?.timeoutMs,
+      });
       return parse<T>(res.body, res.headers);
     },
     async upload<T = unknown>(path: string, file: File) {
       const core = await corePromise;
       const bytes = await file.arrayBuffer();
-      const res = await core.upload(path, { name: file.name, type: file.type, bytes });
+      const res = await core.upload(path, {
+        name: file.name,
+        type: file.type,
+        bytes,
+      });
       return parse<T>(res.body, res.headers);
     },
-    async getRoles() { return (await corePromise).getRoles(); },
-    async getClaims() { return (await corePromise).getClaims(); },
-    async logout() {
-      await (await corePromise).logout();
+    async getRoles() {
+      return (await corePromise).getRoles();
+    },
+    async getClaims() {
+      return (await corePromise).getClaims();
+    },
+    async logout(options?: { redirectToIdP?: boolean }) {
+      const logoutResult = await (await corePromise).logout();
       try {
         const psa = navigator.credentials?.preventSilentAccess;
         if (typeof psa === "function") {
           await psa.call(navigator.credentials);
         }
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
       try {
-        const IC = (globalThis as { IdentityCredential?: IdentityCredentialConstructor }).IdentityCredential;
+        const IC = (
+          globalThis as { IdentityCredential?: IdentityCredentialConstructor }
+        ).IdentityCredential;
         if (IC && typeof IC.disconnect === "function") {
           await IC.disconnect({
             configURL: `${cfg.fedcmBaseUrl}${cfg.fedcmConfigUrl}`,
             clientId: cfg.clientId,
           });
         }
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
       emitFedcmEvent({ type: "disconnected" });
+      if (
+        options?.redirectToIdP &&
+        logoutResult.endSessionUrl &&
+        typeof window !== "undefined"
+      ) {
+        window.location.assign(logoutResult.endSessionUrl);
+      }
     },
-    async prefetchDiscovery() { await getDiscovery(cfg.idpBaseUrl, cfg.timeouts); },
+    async prefetchDiscovery() {
+      await getDiscovery(cfg.idpBaseUrl, cfg.timeouts);
+    },
     destroy() {
       runtimeAbort.abort();
-      void corePromise.then(c => c.destroy());
+      void corePromise.then((c) => c.destroy());
     },
   };
 }

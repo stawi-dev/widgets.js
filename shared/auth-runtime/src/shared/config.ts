@@ -16,22 +16,28 @@ const DEFAULTS = {
 } as const;
 
 export function resolveConfig(config: AuthConfig): ResolvedConfig {
-  if (!config?.clientId) throw new AuthError("INVALID_CONFIG", "clientId is required");
+  if (!config?.clientId)
+    throw new AuthError("INVALID_CONFIG", "clientId is required");
 
   const strip = (u: string) => u.replace(/\/$/, "");
   const idpBaseUrl = strip(config.idpBaseUrl ?? DEFAULTS.idpBaseUrl);
   const apiBaseUrl = strip(config.apiBaseUrl ?? DEFAULTS.apiBaseUrl);
   const fedcmBaseUrl = strip(config.fedcmBaseUrl ?? DEFAULTS.fedcmBaseUrl);
-  const redirectUri = config.redirectUri
-    ?? (typeof window !== "undefined"
+  const redirectUri =
+    config.redirectUri ??
+    (typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`
       : "http://localhost/auth/callback");
+  const logoutRedirectUri =
+    config.logoutRedirectUri ??
+    (typeof window !== "undefined" ? window.location.href : redirectUri);
 
   return {
     clientId: config.clientId,
     idpBaseUrl,
     apiBaseUrl,
     redirectUri,
+    logoutRedirectUri,
     scopes: config.scopes ?? [...DEFAULTS.scopes],
     fedcmBaseUrl,
     fedcmConfigUrl: config.fedcmConfigUrl ?? DEFAULTS.fedcmConfigUrl,
@@ -42,6 +48,9 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
   };
 }
 
-export function namespaceOf(cfg: { clientId: string; idpBaseUrl: string }): string {
+export function namespaceOf(cfg: {
+  clientId: string;
+  idpBaseUrl: string;
+}): string {
   return `${cfg.clientId}::${cfg.idpBaseUrl}`;
 }

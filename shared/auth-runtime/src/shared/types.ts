@@ -1,5 +1,9 @@
 export type AuthState =
-  | "initializing" | "authenticated" | "unauthenticated" | "refreshing" | "error";
+  | "initializing"
+  | "authenticated"
+  | "unauthenticated"
+  | "refreshing"
+  | "error";
 
 export type AuthStateCallback = (state: AuthState) => void;
 
@@ -14,6 +18,11 @@ export interface AuthConfig {
   idpBaseUrl?: string;
   apiBaseUrl?: string;
   redirectUri?: string;
+  /**
+   * Where the authorization server should return the browser after a full
+   * OIDC logout redirect. Defaults to the current page URL in browsers.
+   */
+  logoutRedirectUri?: string;
   scopes?: string[];
   /**
    * Origin that serves the FedCM IdP endpoints (/.well-known/web-identity and
@@ -29,7 +38,12 @@ export interface AuthConfig {
   fedcmConfigUrl?: string;
   installationId?: string;
   skipFedCM?: boolean;
-  timeouts?: { discovery?: number; token?: number; api?: number; upload?: number };
+  timeouts?: {
+    discovery?: number;
+    token?: number;
+    api?: number;
+    upload?: number;
+  };
   fedcm?: {
     nonce?: () => string | Promise<string>;
     fields?: string[];
@@ -44,6 +58,7 @@ export interface ResolvedConfig {
   idpBaseUrl: string;
   apiBaseUrl: string;
   redirectUri: string;
+  logoutRedirectUri: string;
   scopes: string[];
   fedcmBaseUrl: string;
   fedcmConfigUrl: string;
@@ -67,7 +82,12 @@ export interface TokenSet {
   idToken?: string;
 }
 
-export interface UserInfo { id: string; name: string; email: string; picture?: string; }
+export interface UserInfo {
+  id: string;
+  name: string;
+  email: string;
+  picture?: string;
+}
 
 export type SecurityEvent =
   | { type: "refresh_reuse_detected"; at: number }

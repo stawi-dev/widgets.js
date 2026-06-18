@@ -16,6 +16,7 @@ export function ProfileWidgetRoot({
   clientId,
   idpBaseUrl,
   apiBaseUrl,
+  logoutRedirectUri,
   adminPanelUrl,
   onLogout,
   locale,
@@ -46,6 +47,7 @@ export function ProfileWidgetRoot({
           installationId={installationId}
           idpBaseUrl={idpBaseUrl}
           apiBaseUrl={apiBaseUrl}
+          logoutRedirectUri={logoutRedirectUri}
           runtime={runtime}
         >
           <AuthGate adminPanelUrl={adminPanelUrl} onLogout={onLogout} />

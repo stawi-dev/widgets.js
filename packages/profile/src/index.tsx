@@ -1,5 +1,9 @@
 import { createRoot, type Root } from "react-dom/client";
-import { createAuthRuntime, type AuthRuntime, type AuthState } from "@stawi/auth-runtime";
+import {
+  createAuthRuntime,
+  type AuthRuntime,
+  type AuthState,
+} from "@stawi/auth-runtime";
 import { ProfileWidgetRoot } from "./components/ProfileWidgetRoot.js";
 import { ShadowStyleProvider } from "./shadow-host.js";
 import { isRtl } from "./i18n/index.js";
@@ -8,7 +12,11 @@ import type { ProfileWidgetProps } from "./types.js";
 // Injected by tsup `define`. Falls back to "dev" when running from source.
 declare const __STAWI_PROFILE_VERSION__: string | undefined;
 
-export type { ProfileWidgetProps, ProfileData, ContactMethod } from "./types.js";
+export type {
+  ProfileWidgetProps,
+  ProfileData,
+  ContactMethod,
+} from "./types.js";
 export { ProfileWidgetRoot } from "./components/ProfileWidgetRoot.js";
 export type {
   ProfileWidgetTokens,
@@ -95,12 +103,15 @@ export function mount(options: MountOptions): MountHandle {
   // useful when an embedder (a host page with multiple widgets or a
   // dedicated singleton for API calls) wants shared token state.
   const ownsRuntime = options.runtime === undefined;
-  const runtime = options.runtime ?? createAuthRuntime({
-    clientId: options.clientId ?? options.installationId,
-    installationId: options.installationId,
-    idpBaseUrl: options.idpBaseUrl,
-    apiBaseUrl: options.apiBaseUrl,
-  });
+  const runtime =
+    options.runtime ??
+    createAuthRuntime({
+      clientId: options.clientId ?? options.installationId,
+      installationId: options.installationId,
+      idpBaseUrl: options.idpBaseUrl,
+      apiBaseUrl: options.apiBaseUrl,
+      logoutRedirectUri: options.logoutRedirectUri,
+    });
 
   const root: Root = createRoot(mountPoint);
   root.render(
@@ -116,6 +127,7 @@ export function mount(options: MountOptions): MountHandle {
         clientId={options.clientId}
         idpBaseUrl={options.idpBaseUrl}
         apiBaseUrl={options.apiBaseUrl}
+        logoutRedirectUri={options.logoutRedirectUri}
         theme={theme}
         adminPanelUrl={options.adminPanelUrl}
         onLogout={options.onLogout}

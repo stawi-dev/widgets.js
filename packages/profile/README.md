@@ -75,18 +75,19 @@ Drop the IIFE bundle in with `data-*` attributes — no bundler required:
 
 Supported `data-*` attributes:
 
-| Attribute               | Maps to             | Notes                                                    |
-| ----------------------- | ------------------- | -------------------------------------------------------- |
-| `data-installation-id`  | `installationId`    | **Required.**                                            |
-| `data-client-id`        | `clientId`          | Defaults to `installationId`.                            |
-| `data-idp-base-url`     | `idpBaseUrl`        | IDP/OIDC base URL.                                       |
-| `data-api-base-url`     | `apiBaseUrl`        | API base URL for profile endpoints.                      |
-| `data-theme`            | `theme`             | `"light"`, `"dark"`, or `"auto"`. Default `"auto"`.      |
-| `data-admin-panel-url`  | `adminPanelUrl`     | Must be `http(s)`; otherwise ignored with a console error.|
-| `data-locale`           | `locale`            | BCP-47; e.g. `"en"`, `"fr"`, `"sw"`, `"ar"`.             |
-| `data-external-fonts`   | `externalFonts`     | Presence or `"true"`/`"1"` → load Google Fonts.          |
-| `data-gravatar`         | `gravatar`          | Presence or `"true"`/`"1"` → opt in to Gravatar.         |
-| `data-tokens`           | `tokens`            | JSON string of `ProfileWidgetThemedTokens`.              |
+| Attribute                  | Maps to             | Notes                                                      |
+| -------------------------- | ------------------- | ---------------------------------------------------------- |
+| `data-installation-id`     | `installationId`    | **Required.**                                              |
+| `data-client-id`           | `clientId`          | Defaults to `installationId`.                              |
+| `data-idp-base-url`        | `idpBaseUrl`        | IDP/OIDC base URL.                                         |
+| `data-api-base-url`        | `apiBaseUrl`        | API base URL for profile endpoints.                        |
+| `data-logout-redirect-uri` | `logoutRedirectUri` | Registered URL to return to after full IdP logout.         |
+| `data-theme`               | `theme`             | `"light"`, `"dark"`, or `"auto"`. Default `"auto"`.        |
+| `data-admin-panel-url`     | `adminPanelUrl`     | Must be `http(s)`; otherwise ignored with a console error. |
+| `data-locale`              | `locale`            | BCP-47; e.g. `"en"`, `"fr"`, `"sw"`, `"ar"`.               |
+| `data-external-fonts`      | `externalFonts`     | Presence or `"true"`/`"1"` → load Google Fonts.            |
+| `data-gravatar`            | `gravatar`          | Presence or `"true"`/`"1"` → opt in to Gravatar.           |
+| `data-tokens`              | `tokens`            | JSON string of `ProfileWidgetThemedTokens`.                |
 
 ---
 
@@ -94,25 +95,26 @@ Supported `data-*` attributes:
 
 `ProfileWidgetProps` (plus `target?: HTMLElement` for `mount()`):
 
-| Prop                  | Type                                                                       | Default          | Description                                                            |
-| --------------------- | -------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
-| `installationId`      | `string`                                                                   | — **required**   | Stawi installation ID.                                                 |
-| `clientId`            | `string`                                                                   | `installationId` | OAuth client ID.                                                       |
-| `idpBaseUrl`          | `string`                                                                   | runtime default  | IDP base URL (used for OIDC discovery).                                |
-| `apiBaseUrl`          | `string`                                                                   | runtime default  | API base URL for profile endpoints.                                    |
-| `theme`               | `"light" \| "dark" \| "auto"`                                              | `"auto"`         | Applies a preset color palette; `"auto"` follows `prefers-color-scheme`.|
-| `adminPanelUrl`       | `string`                                                                   | —                | Validated against `http(s)`; shown as an admin link in the popover.    |
-| `onLogout`            | `() => void`                                                               | —                | Invoked after a successful logout.                                     |
-| `tokens`              | `ProfileWidgetThemedTokens`                                                | —                | Design-token overrides; supports optional `dark` / `light` branches.   |
-| `css`                 | `string`                                                                   | —                | Raw CSS appended after tokens — ultimate escape hatch.                 |
-| `externalFonts`       | `boolean`                                                                  | `false`          | `true` to load Poppins/Lora from Google Fonts; default uses inlined subsets.|
-| `maxAvatarBytes`      | `number`                                                                   | `2 * 1024 * 1024`| Max avatar byte size accepted for upload. Default 2 MiB.               |
-| `locale`              | `string`                                                                   | `"en"`           | BCP-47 locale; falls back to base language then English.               |
-| `gravatar`            | `boolean`                                                                  | `false`          | Opt-in Gravatar fallback for avatars.                                  |
-| `onError`             | `(err: unknown) => void`                                                   | —                | Recoverable/UI error hook.                                             |
-| `onAuthStateChange`   | `(s: AuthState) => void`                                                   | —                | Auth state transitions.                                                |
-| `onSecurityEvent`     | `(e: SecurityEvent) => void`                                               | —                | Security-relevant events (see Observability).                          |
-| `onMetric`            | `(name: string, durationMs: number, tags: Record<string,string>) => void`  | —                | Timing / counter hook for OTel-style pipelines.                        |
+| Prop                | Type                                                                      | Default           | Description                                                                  |
+| ------------------- | ------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------- |
+| `installationId`    | `string`                                                                  | — **required**    | Stawi installation ID.                                                       |
+| `clientId`          | `string`                                                                  | `installationId`  | OAuth client ID.                                                             |
+| `idpBaseUrl`        | `string`                                                                  | runtime default   | IDP base URL (used for OIDC discovery).                                      |
+| `apiBaseUrl`        | `string`                                                                  | runtime default   | API base URL for profile endpoints.                                          |
+| `logoutRedirectUri` | `string`                                                                  | current page      | Registered URL to return to after full OIDC logout.                          |
+| `theme`             | `"light" \| "dark" \| "auto"`                                             | `"auto"`          | Applies a preset color palette; `"auto"` follows `prefers-color-scheme`.     |
+| `adminPanelUrl`     | `string`                                                                  | —                 | Validated against `http(s)`; shown as an admin link in the popover.          |
+| `onLogout`          | `() => void`                                                              | —                 | Invoked after a successful logout.                                           |
+| `tokens`            | `ProfileWidgetThemedTokens`                                               | —                 | Design-token overrides; supports optional `dark` / `light` branches.         |
+| `css`               | `string`                                                                  | —                 | Raw CSS appended after tokens — ultimate escape hatch.                       |
+| `externalFonts`     | `boolean`                                                                 | `false`           | `true` to load Poppins/Lora from Google Fonts; default uses inlined subsets. |
+| `maxAvatarBytes`    | `number`                                                                  | `2 * 1024 * 1024` | Max avatar byte size accepted for upload. Default 2 MiB.                     |
+| `locale`            | `string`                                                                  | `"en"`            | BCP-47 locale; falls back to base language then English.                     |
+| `gravatar`          | `boolean`                                                                 | `false`           | Opt-in Gravatar fallback for avatars.                                        |
+| `onError`           | `(err: unknown) => void`                                                  | —                 | Recoverable/UI error hook.                                                   |
+| `onAuthStateChange` | `(s: AuthState) => void`                                                  | —                 | Auth state transitions.                                                      |
+| `onSecurityEvent`   | `(e: SecurityEvent) => void`                                              | —                 | Security-relevant events (see Observability).                                |
+| `onMetric`          | `(name: string, durationMs: number, tags: Record<string,string>) => void` | —                 | Timing / counter hook for OTel-style pipelines.                              |
 
 ---
 
@@ -239,6 +241,8 @@ The OAuth popup redirects to `redirectUri`. The widget ships a tiny, side-effect
 
 **Embedders must serve `dist/auth-callback.html` at the path registered as `redirectUri`.** For example, if your `redirectUri` is `https://app.example.com/oauth/callback`, copy `auth-callback.html` to that path (or route that URL to its contents). The page makes no network calls, reads no storage, and needs no CSP relaxations beyond the script that's inline in the file.
 
+For logout, the profile widget performs local token cleanup first, then requests a full OIDC end-session redirect so authorization-server cookies and FedCM login status are cleared. Register `logoutRedirectUri` with the authorization server; if omitted, the runtime uses the current page URL.
+
 ---
 
 ## CSP
@@ -256,6 +260,7 @@ frame-ancestors 'self';
 ```
 
 Notes:
+
 - `worker-src … blob:` is required because the auth Worker is built as a `Blob` URL so it inherits the origin.
 - `style-src 'unsafe-inline'` is required for the Shadow DOM `<style>` block. Nonces do not propagate into shadow roots.
 - `font-src data:` is only required for the default inlined fonts. If you set `externalFonts: true`, add `https://fonts.gstatic.com` instead (and `https://fonts.googleapis.com` to `style-src`).
@@ -315,7 +320,11 @@ mount({
     // { type: "logged_out_elsewhere";  at: number }
   },
 
-  onMetric: (name: string, durationMs: number, tags: Record<string, string>) => {
+  onMetric: (
+    name: string,
+    durationMs: number,
+    tags: Record<string, string>,
+  ) => {
     // e.g. name="auth.token.refresh", durationMs=142, tags={ outcome: "ok" }
   },
 });

@@ -92,6 +92,8 @@ export interface ProfileWidgetProps {
   clientId?: string;
   idpBaseUrl?: string;
   apiBaseUrl?: string;
+  /** Registered post-logout return URL. Defaults to the current page URL. */
+  logoutRedirectUri?: string;
   theme?: "light" | "dark" | "auto";
   adminPanelUrl?: string;
   onLogout?: () => void;

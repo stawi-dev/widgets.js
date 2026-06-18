@@ -28,6 +28,7 @@ interface AuthProviderProps {
   installationId?: string;
   idpBaseUrl?: string;
   apiBaseUrl?: string;
+  logoutRedirectUri?: string;
   /**
    * Optional pre-constructed runtime. When provided, AuthProvider uses it
    * directly instead of creating one, and does NOT destroy it on unmount
@@ -42,14 +43,28 @@ export function AuthProvider({
   installationId,
   idpBaseUrl,
   apiBaseUrl,
+  logoutRedirectUri,
   runtime: providedRuntime,
   children,
 }: AuthProviderProps) {
   const runtime = useMemo(
     () =>
       providedRuntime ??
-      createAuthRuntime({ clientId, installationId, idpBaseUrl, apiBaseUrl }),
-    [providedRuntime, clientId, installationId, idpBaseUrl, apiBaseUrl],
+      createAuthRuntime({
+        clientId,
+        installationId,
+        idpBaseUrl,
+        apiBaseUrl,
+        logoutRedirectUri,
+      }),
+    [
+      providedRuntime,
+      clientId,
+      installationId,
+      idpBaseUrl,
+      apiBaseUrl,
+      logoutRedirectUri,
+    ],
   );
   const [authState, setAuthState] = useState<AuthState>("initializing");
   const hooks = useContext(HooksContext);
@@ -82,7 +97,10 @@ export function AuthProvider({
     () => runtime.ensureAuthenticated(),
     [runtime],
   );
-  const logout = useCallback(() => runtime.logout(), [runtime]);
+  const logout = useCallback(
+    () => runtime.logout({ redirectToIdP: true }),
+    [runtime],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({ authState, runtime, ensureAuthenticated, logout }),

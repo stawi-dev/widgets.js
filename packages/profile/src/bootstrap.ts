@@ -5,10 +5,7 @@ import type { ProfileWidgetThemedTokens } from "./themes/types.js";
  * Parse a JSON attribute (e.g. data-tokens). On parse failure, logs an error
  * and returns undefined so the widget can still mount with defaults.
  */
-function parseJsonAttr<T>(
-  name: string,
-  raw: string | null,
-): T | undefined {
+function parseJsonAttr<T>(name: string, raw: string | null): T | undefined {
   if (!raw) return undefined;
   try {
     return JSON.parse(raw) as T;
@@ -53,7 +50,9 @@ function autoMount() {
     script.getAttribute("data-tokens"),
   );
   const locale = script.getAttribute("data-locale") ?? undefined;
-  const externalFonts = parseBoolAttr(script.getAttribute("data-external-fonts"));
+  const externalFonts = parseBoolAttr(
+    script.getAttribute("data-external-fonts"),
+  );
   const gravatar = parseBoolAttr(script.getAttribute("data-gravatar"));
 
   const options: MountOptions = {
@@ -61,11 +60,11 @@ function autoMount() {
     clientId: script.getAttribute("data-client-id") ?? undefined,
     idpBaseUrl: script.getAttribute("data-idp-base-url") ?? undefined,
     apiBaseUrl: script.getAttribute("data-api-base-url") ?? undefined,
+    logoutRedirectUri:
+      script.getAttribute("data-logout-redirect-uri") ?? undefined,
     theme:
-      (script.getAttribute("data-theme") as MountOptions["theme"]) ??
-      "auto",
-    adminPanelUrl:
-      script.getAttribute("data-admin-panel-url") ?? undefined,
+      (script.getAttribute("data-theme") as MountOptions["theme"]) ?? "auto",
+    adminPanelUrl: script.getAttribute("data-admin-panel-url") ?? undefined,
     tokens,
     locale,
     externalFonts,

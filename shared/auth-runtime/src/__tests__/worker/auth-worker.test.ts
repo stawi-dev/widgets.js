@@ -1,26 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createWorkerCore } from "../../worker/auth-worker.js";
-import { _setDiscoveryForTest, clearDiscoveryCache } from "../../shared/discovery.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../../shared/discovery.js";
 
 const cfg = {
-  clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a",
-  redirectUri: "https://r/cb", scopes: ["openid","offline_access"],
+  clientId: "c",
+  idpBaseUrl: "https://i",
+  apiBaseUrl: "https://a",
+  redirectUri: "https://r/cb",
+  scopes: ["openid", "offline_access"],
+  logoutRedirectUri: "https://app.example/profile",
   fedcmBaseUrl: "https://i",
-  fedcmConfigUrl: "/.well-known/web-identity", skipFedCM: true,
+  fedcmConfigUrl: "/.well-known/web-identity",
+  skipFedCM: true,
   timeouts: { discovery: 1000, token: 1000, api: 1000, upload: 1000 },
 };
 
 beforeEach(() => {
   clearDiscoveryCache();
   _setDiscoveryForTest("https://i", {
-    issuer: "https://i", authorization_endpoint: "https://i/auth", token_endpoint: "https://i/token",
+    issuer: "https://i",
+    authorization_endpoint: "https://i/auth",
+    token_endpoint: "https://i/token",
     dpop_signing_alg_values_supported: ["ES256"],
   });
   globalThis.fetch = vi.fn();
   // Reset fake-indexeddb between tests; createWorkerCore loads the prior
   // session on init now that keys round-trip, so without this each test
   // starts in the previous test's authenticated state.
-  const idb = (globalThis as unknown as { indexedDB?: { _databases?: Map<unknown, unknown> } }).indexedDB;
+  const idb = (
+    globalThis as unknown as {
+      indexedDB?: { _databases?: Map<unknown, unknown> };
+    }
+  ).indexedDB;
   if (idb?._databases) idb._databases = new Map();
 });
 
@@ -44,18 +58,29 @@ describe("worker core", () => {
 
   it("getClaims throws TOKEN_EXPIRED when unauthenticated", async () => {
     const core = await createWorkerCore(cfg as any);
-    await expect(core.getClaims()).rejects.toMatchObject({ code: "TOKEN_EXPIRED" });
+    await expect(core.getClaims()).rejects.toMatchObject({
+      code: "TOKEN_EXPIRED",
+    });
   });
 
   it("completeFedcm throws FEDCM_NONCE_MISMATCH when claim doesn't match expected", async () => {
     const core = await createWorkerCore(cfg as any);
     // Build a fake id_token with iss matching cfg and a specific nonce claim.
-    const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+    const header = Buffer.from(
+      JSON.stringify({ alg: "none", typ: "JWT" }),
+    ).toString("base64url");
     const payload = Buffer.from(
-      JSON.stringify({ iss: "https://i", aud: "c", sub: "u", nonce: "token-nonce" }),
+      JSON.stringify({
+        iss: "https://i",
+        aud: "c",
+        sub: "u",
+        nonce: "token-nonce",
+      }),
     ).toString("base64url");
     const token = `${header}.${payload}.sig`;
-    await expect(core.completeFedcm(token, "different-nonce")).rejects.toMatchObject({
+    await expect(
+      core.completeFedcm(token, "different-nonce"),
+    ).rejects.toMatchObject({
       code: "FEDCM_NONCE_MISMATCH",
     });
   });
@@ -79,10 +104,17 @@ describe("worker core", () => {
     expect(core.state).toBe("unauthenticated");
 
     const states: string[] = [];
-    core.onState((s) => { states.push(s); });
+    core.onState((s) => {
+      states.push(s);
+    });
 
     const { state, verifier } = await core.prepareAuth();
-    await core.completeAuth({ code: "the-code", state, verifier, expectedState: state });
+    await core.completeAuth({
+      code: "the-code",
+      state,
+      verifier,
+      expectedState: state,
+    });
 
     expect(core.state).toBe("authenticated");
     expect(states).toContain("authenticated");
@@ -97,7 +129,12 @@ describe("worker core", () => {
   it("completeAuth throws OAUTH_STATE_MISMATCH when callback state differs from expected", async () => {
     const core = await createWorkerCore(cfg as any);
     await expect(
-      core.completeAuth({ code: "c", state: "wrong", verifier: "v", expectedState: "expected" }),
+      core.completeAuth({
+        code: "c",
+        state: "wrong",
+        verifier: "v",
+        expectedState: "expected",
+      }),
     ).rejects.toMatchObject({ code: "OAUTH_STATE_MISMATCH" });
     expect(core.state).toBe("unauthenticated");
   });
@@ -115,26 +152,57 @@ describe("worker core", () => {
     } as any);
     // First fetch: token exchange. Subsequent fetches: end_session and
     // revocation, both 200 (we don't care about response shape).
-    const f = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        access_token: "at-2", refresh_token: "rt-2", expires_in: 300, token_type: "DPoP",
-        id_token: Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url") + "." +
-                  Buffer.from(JSON.stringify({ iss: "https://i", aud: "c", sub: "u" })).toString("base64url") +
-                  ".sig",
-      }), { status: 200 }))
+    const idToken =
+      Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url") +
+      "." +
+      Buffer.from(
+        JSON.stringify({ iss: "https://i", aud: "c", sub: "u" }),
+      ).toString("base64url") +
+      ".sig";
+    const f = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "at-2",
+            refresh_token: "rt-2",
+            expires_in: 300,
+            token_type: "DPoP",
+            id_token: idToken,
+          }),
+          { status: 200 },
+        ),
+      )
       .mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = f as any;
 
     const core = await createWorkerCore(cfg as any);
     const { state, verifier } = await core.prepareAuth();
-    await core.completeAuth({ code: "the-code", state, verifier, expectedState: state });
+    await core.completeAuth({
+      code: "the-code",
+      state,
+      verifier,
+      expectedState: state,
+    });
     expect(core.state).toBe("authenticated");
 
-    await core.logout();
+    const logoutResult = await core.logout();
     expect(core.state).toBe("unauthenticated");
+    const logoutUrl = new URL(logoutResult.endSessionUrl!);
+    expect(logoutUrl.origin).toBe("https://i");
+    expect(logoutUrl.pathname).toBe("/logout");
+    expect(logoutUrl.searchParams.get("client_id")).toBe("c");
+    expect(logoutUrl.searchParams.get("id_token_hint")).toBe(idToken);
+    expect(logoutUrl.searchParams.get("post_logout_redirect_uri")).toBe(
+      cfg.logoutRedirectUri,
+    );
 
     const urls = f.mock.calls.map((c) => c[0] as string);
     expect(urls).toContain("https://i/logout");
     expect(urls).toContain("https://i/revoke");
+    const logoutCall = f.mock.calls.find((c) => c[0] === "https://i/logout");
+    const revokeCall = f.mock.calls.find((c) => c[0] === "https://i/revoke");
+    expect(logoutCall?.[1]).toMatchObject({ credentials: "include" });
+    expect(revokeCall?.[1]).toMatchObject({ credentials: "include" });
   });
 });

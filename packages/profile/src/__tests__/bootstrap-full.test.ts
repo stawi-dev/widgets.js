@@ -29,6 +29,10 @@ describe("bootstrap", () => {
     script.setAttribute("data-client-id", "client-1");
     script.setAttribute("data-idp-base-url", "https://idp.example.com");
     script.setAttribute("data-api-base-url", "https://api.example.com");
+    script.setAttribute(
+      "data-logout-redirect-uri",
+      "https://app.example.com/account",
+    );
     script.setAttribute("data-theme", "dark");
     script.setAttribute("data-admin-panel-url", "https://admin.example.com");
 
@@ -47,6 +51,7 @@ describe("bootstrap", () => {
         clientId: "client-1",
         idpBaseUrl: "https://idp.example.com",
         apiBaseUrl: "https://api.example.com",
+        logoutRedirectUri: "https://app.example.com/account",
         theme: "dark",
         adminPanelUrl: "https://admin.example.com",
       }),
