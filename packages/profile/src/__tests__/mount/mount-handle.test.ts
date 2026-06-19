@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "../../index.js";
+import { createAuthRuntime } from "@stawi/auth-runtime";
+import { profileAuthScopes } from "../../auth-scopes.js";
 
 // Stub createAuthRuntime so mount doesn't do real network/worker work.
 // The stub exposes spies we can assert on.
@@ -38,6 +40,7 @@ describe("MountHandle", () => {
     }
     prefetchSpy.mockClear();
     destroySpy.mockClear();
+    vi.mocked(createAuthRuntime).mockClear();
   });
 
   it("exposes a version string", () => {
@@ -64,5 +67,17 @@ describe("MountHandle", () => {
     const handle = mount({ installationId: "x" });
     handle.unmount();
     expect(destroySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates owned runtime with OAuth scopes allowed by the profile client", () => {
+    const handle = mount({ installationId: "inst-1", clientId: "client-1" });
+
+    expect(createAuthRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "client-1",
+        scopes: [...profileAuthScopes],
+      }),
+    );
+    handle.unmount();
   });
 });

@@ -7,6 +7,7 @@ import {
 import { ProfileWidgetRoot } from "./components/ProfileWidgetRoot.js";
 import { ShadowStyleProvider } from "./shadow-host.js";
 import { isRtl } from "./i18n/index.js";
+import { profileAuthScopes } from "./auth-scopes.js";
 import type { ProfileWidgetProps } from "./types.js";
 
 // Injected by tsup `define`. Falls back to "dev" when running from source.
@@ -111,6 +112,7 @@ export function mount(options: MountOptions): MountHandle {
       idpBaseUrl: options.idpBaseUrl,
       apiBaseUrl: options.apiBaseUrl,
       logoutRedirectUri: options.logoutRedirectUri,
+      scopes: [...profileAuthScopes],
     });
 
   const root: Root = createRoot(mountPoint);

@@ -13,6 +13,7 @@ import {
   type AuthState,
 } from "@stawi/auth-runtime";
 import { HooksContext } from "./hooks-context.js";
+import { profileAuthScopes } from "../auth-scopes.js";
 
 export interface AuthContextValue {
   authState: AuthState;
@@ -56,6 +57,7 @@ export function AuthProvider({
         idpBaseUrl,
         apiBaseUrl,
         logoutRedirectUri,
+        scopes: [...profileAuthScopes],
       }),
     [
       providedRuntime,
