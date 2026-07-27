@@ -3,9 +3,7 @@ import type { AuthConfig, ResolvedConfig } from "./types.js";
 
 const DEFAULTS = {
   idpBaseUrl: "https://oauth2.stawi.org",
-  // Profile service host (subdomain form). Legacy gateway hosts
-  // (https://api.stawi.org) still work when passed explicitly.
-  apiBaseUrl: "https://profile.stawi.org",
+  apiBaseUrl: "https://api.stawi.org",
   scopes: ["openid", "profile", "email", "offline_access"] as string[],
   // The FedCM endpoints live on a separate origin from Hydra in the Stawi
   // stack: Hydra at oauth2.stawi.org, FedCM at accounts.stawi.org. The path
