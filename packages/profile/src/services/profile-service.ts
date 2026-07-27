@@ -7,33 +7,22 @@ import type {
   ContactType,
 } from "../types.js";
 
-// Service path prefixes depend on how the API is addressed:
-//   - Subdomain form (preferred): apiBaseUrl=https://profile.stawi.org
-//     → no gateway prefix; backend mux is at /.
-//   - Legacy gateway form: apiBaseUrl=https://api.stawi.org
-//     → `/profile` PathPrefix rewritten to `/` by the gateway.
-//
-// Callers should pass the profile host for new deployments.
-function profilePathPrefix(apiBaseUrl: string | undefined): string {
-  if (!apiBaseUrl) return "/profile";
-  try {
-    const host = new URL(apiBaseUrl).hostname.toLowerCase();
-    if (host.startsWith("profile.")) return "";
-    if (host.startsWith("api.")) return "/profile";
-  } catch {
-    /* ignore */
-  }
-  // Bare apex or unknown host: assume gateway path layout.
-  return "/profile";
-}
+// Antinvestor cluster convention: every backend is reachable via a
+// single `/<service>` PathPrefix on api.stawi.{org,dev,im}. The
+// gateway URLRewrites the prefix to "/" before the request reaches
+// the backend mux, which serves both REST and Connect RPC handlers.
+// So Connect RPC calls go through the same `/profile` prefix as
+// REST — there is NO separate `/profile.v1.ProfileService` route.
+const SVC = "/profile/profile.v1.ProfileService";
 
-export function servicePaths(apiBaseUrl?: string): { svc: string; rest: string } {
-  const prefix = profilePathPrefix(apiBaseUrl);
-  return {
-    svc: `${prefix}/profile.v1.ProfileService`,
-    rest: `${prefix}/public`,
-  };
-}
+// REST surface on service-profile. /public/user/info reads the JWT
+// `sub` claim and returns the matching profile — no profile_id is
+// needed from the client. Cheaper than the Connect RPC `GetById`
+// path: it's a simple GET (no CORS preflight, no Idempotency-Key)
+// and ships a smaller payload tailored to "show me the current
+// user" rather than the full proto. Used by ProfileProvider on
+// initial load; mutations still flow through Connect RPC below.
+const REST = "/profile/public";
 
 function idempotencyKey(): string {
   return crypto.randomUUID();
@@ -45,10 +34,9 @@ function post<Req, Res>(
   body: Req,
   mutation = true,
 ): Promise<Res> {
-  const { svc } = servicePaths(rt.apiBaseUrl);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (mutation) headers["Idempotency-Key"] = idempotencyKey();
-  return rt.fetch<Res>(`${svc}/${method}`, {
+  return rt.fetch<Res>(`${SVC}/${method}`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -76,8 +64,7 @@ export function getProfile(
 export function getCurrentProfile(
   rt: AuthRuntime,
 ): Promise<UserInfoResponse> {
-  const { rest } = servicePaths(rt.apiBaseUrl);
-  return rt.fetch<UserInfoResponse>(`${rest}/user/info`, { method: "GET" });
+  return rt.fetch<UserInfoResponse>(`${REST}/user/info`, { method: "GET" });
 }
 
 export function updateProfile(

@@ -252,7 +252,7 @@ The widget is designed to run under a strict CSP. Required directives:
 ```
 script-src 'self' https://cdn.stawi.org 'strict-dynamic' <nonce>;
 worker-src 'self' blob:;
-connect-src https://oauth2.stawi.org https://profile.stawi.org https://api.stawi.org;
+connect-src https://oauth2.stawi.org https://api.stawi.org;
 img-src https: data:;
 style-src 'unsafe-inline';   /* Shadow DOM inline styles */
 font-src data:;              /* inlined woff2 */
