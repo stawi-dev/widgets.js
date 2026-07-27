@@ -56,6 +56,59 @@ describe("startRedirect", () => {
     const raw = sessionStorage.getItem(__redirectInternals.STASH_KEY)!;
     expect(JSON.parse(raw)).toEqual({ state: "STATE", verifier: "VERIFIER", returnTo: "/jobs/?from=nav" });
   });
+
+  it("throws OAUTH_REDIRECT_STORAGE_MISSING when sessionStorage.setItem fails", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+    const core = makeCore();
+    await expect(startRedirect(cfg, core)).rejects.toMatchObject({
+      code: "OAUTH_REDIRECT_STORAGE_MISSING",
+    });
+    expect(assignSpy).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+});
+
+describe("readStash / clearStash branches", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("returns null for missing, invalid JSON, and incomplete stash shapes", () => {
+    expect(__redirectInternals.readStash()).toBeNull();
+
+    sessionStorage.setItem(__redirectInternals.STASH_KEY, "{not-json");
+    expect(__redirectInternals.readStash()).toBeNull();
+
+    sessionStorage.setItem(
+      __redirectInternals.STASH_KEY,
+      JSON.stringify({ state: 1, verifier: "v" }),
+    );
+    expect(__redirectInternals.readStash()).toBeNull();
+
+    sessionStorage.setItem(
+      __redirectInternals.STASH_KEY,
+      JSON.stringify({ state: "s", verifier: "v", returnTo: "relative-not-rooted" }),
+    );
+    expect(__redirectInternals.readStash()).toEqual({
+      state: "s",
+      verifier: "v",
+      returnTo: "/",
+    });
+  });
+
+  it("clearStash tolerates sessionStorage failures", () => {
+    const removeItem = vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(() => __redirectInternals.clearStash()).not.toThrow();
+    removeItem.mockRestore();
+  });
 });
 
 describe("completeRedirect", () => {
