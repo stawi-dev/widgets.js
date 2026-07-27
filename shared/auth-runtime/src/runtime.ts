@@ -81,6 +81,8 @@ export interface AuthRuntime {
   prefetchDiscovery(): Promise<void>;
   destroy(): void;
   readonly version: string;
+  /** Authenticated API origin (gateway or per-service host). */
+  readonly apiBaseUrl: string;
 }
 
 export function createAuthRuntime(config: AuthConfig): AuthRuntime {
@@ -209,6 +211,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
 
   return {
     version,
+    apiBaseUrl: cfg.apiBaseUrl,
     getState() {
       return currentState;
     },
