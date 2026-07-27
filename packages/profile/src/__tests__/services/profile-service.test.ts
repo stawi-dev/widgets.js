@@ -3,7 +3,10 @@ import { getProfile, updateProfile, addContact, removeContact } from "../../serv
 import { ContactType } from "../../types.js";
 
 function runtimeWith(response: unknown) {
-  return { fetch: vi.fn().mockResolvedValue(response) } as any;
+  return {
+    apiBaseUrl: "https://api.example.com",
+    fetch: vi.fn().mockResolvedValue(response),
+  } as any;
 }
 
 describe("profile-service", () => {
