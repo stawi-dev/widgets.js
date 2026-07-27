@@ -52,7 +52,6 @@ export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
       const fallback = err instanceof Error ? err.message : "Sign-in failed.";
       setErrMsg(mapped ?? fallback);
       // Also log so ops can correlate via OpenObserve / Sentry.
-      // eslint-disable-next-line no-console
       console.error("[stawi/profile] sign-in failed:", err);
     } finally {
       setBusy(false);
