@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { AuthGate } from "../../components/AuthGate.js";
+import {
+  AuthGate,
+  authDisplayMode,
+} from "../../components/AuthGate.js";
 import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
 import type { AuthState } from "@stawi/auth-runtime";
 
@@ -35,8 +38,9 @@ function mockAuthContext(overrides: Partial<AuthContextValue> = {}): AuthContext
 }
 
 function renderWithAuth(authState: AuthState, ensureAuthenticated?: () => Promise<void>) {
-  // For authenticated state, mock the profile fetch
-  if (authState === "authenticated") {
+  // Profile chrome is shown for authenticated and refreshing — both need
+  // a successful profile fetch so ProfileProvider can settle.
+  if (authState === "authenticated" || authState === "refreshing") {
     mockFetch.mockResolvedValueOnce({
       data: {
         id: "profile-id-1",
@@ -61,6 +65,16 @@ function renderWithAuth(authState: AuthState, ensureAuthenticated?: () => Promis
   );
 }
 
+describe("authDisplayMode", () => {
+  it("maps auth runtime states to display modes", () => {
+    expect(authDisplayMode("initializing")).toBe("hidden");
+    expect(authDisplayMode("authenticated")).toBe("profile");
+    expect(authDisplayMode("refreshing")).toBe("profile");
+    expect(authDisplayMode("unauthenticated")).toBe("login");
+    expect(authDisplayMode("error")).toBe("login");
+  });
+});
+
 describe("AuthGate", () => {
   beforeEach(() => {
     mockFetch.mockReset();
@@ -76,11 +90,18 @@ describe("AuthGate", () => {
     expect(screen.getByLabelText("Open profile menu")).toBeTruthy();
   });
 
-  it("shows pulsing loader when initializing", () => {
-    renderWithAuth("initializing");
-    const btn = screen.getByLabelText("Loading authentication");
-    expect(btn).toBeTruthy();
-    expect((btn as HTMLButtonElement).disabled).toBe(true);
+  it("keeps profile chrome visible while refreshing tokens", () => {
+    renderWithAuth("refreshing");
+    expect(screen.getByLabelText("Open profile menu")).toBeTruthy();
+    expect(screen.queryByLabelText("Login")).toBeNull();
+  });
+
+  it("renders nothing while initializing", () => {
+    const { container } = renderWithAuth("initializing");
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByLabelText("Login")).toBeNull();
+    expect(screen.queryByLabelText("Loading authentication")).toBeNull();
+    expect(screen.queryByLabelText("Open profile menu")).toBeNull();
   });
 
   it("shows sign-in button when unauthenticated", () => {

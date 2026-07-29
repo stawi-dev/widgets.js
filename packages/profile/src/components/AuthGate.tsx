@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { AuthState } from "@stawi/auth-runtime";
 import { useAuth } from "../hooks/use-auth.js";
 import { useT } from "../hooks/use-t.js";
 import { ProfileProvider } from "../context/profile-context.js";
@@ -8,6 +9,32 @@ import { PersonIcon } from "./Icons.js";
 interface AuthGateProps {
   adminPanelUrl?: string;
   onLogout?: () => void;
+}
+
+/**
+ * Display FSM for the profile chrome. We only commit to a visible UI once
+ * auth is settled enough to avoid reload glitches (login flash → profile).
+ *
+ *   initializing → hidden   (session probe in flight; render nothing)
+ *   refreshing   → profile  (tokens exist; keep chrome stable during refresh)
+ *   authenticated → profile
+ *   unauthenticated → login
+ *   error → login           (recoverable; let the user retry)
+ */
+export type AuthDisplayMode = "hidden" | "login" | "profile";
+
+export function authDisplayMode(authState: AuthState): AuthDisplayMode {
+  switch (authState) {
+    case "authenticated":
+    case "refreshing":
+      return "profile";
+    case "unauthenticated":
+    case "error":
+      return "login";
+    case "initializing":
+    default:
+      return "hidden";
+  }
 }
 
 // Visible error messages for the sign-in failure modes most users hit.
@@ -58,7 +85,13 @@ export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
     }
   }, [ensureAuthenticated]);
 
-  if (authState === "authenticated") {
+  const mode = authDisplayMode(authState);
+
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "profile") {
     return (
       <ProfileProvider>
         <ProfilePopover adminPanelUrl={adminPanelUrl} onLogout={onLogout} />
@@ -66,20 +99,7 @@ export function AuthGate({ adminPanelUrl, onLogout }: AuthGateProps) {
     );
   }
 
-  if (authState === "initializing") {
-    return (
-      <button
-        className="aiw-trigger aiw-trigger--loading"
-        aria-label={t("auth.loading")}
-        disabled
-      >
-        <span className="aiw-trigger-pulse" />
-      </button>
-    );
-  }
-
-  // unauthenticated or error — render the button and an inline alert
-  // slot that only takes layout space when something went wrong.
+  // mode === "login"
   return (
     <div className="aiw-signin-wrapper">
       <button
