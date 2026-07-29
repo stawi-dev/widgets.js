@@ -26,19 +26,22 @@ vi.mock("@stawi/auth-runtime", () => ({
 import { ProfileWidgetRoot } from "../../components/ProfileWidgetRoot.js";
 
 describe("ProfileWidgetRoot", () => {
-  it("renders without crashing", () => {
-    render(
+  it("renders nothing while auth is initializing", () => {
+    const { container } = render(
       <ProfileWidgetRoot
         installationId="test-inst"
         clientId="test-client"
       />,
     );
-    // In initializing state, shows the loading button
-    expect(screen.getByLabelText("Loading authentication")).toBeTruthy();
+    // Display FSM: initializing → hidden (no login flash, no loader chrome)
+    expect(container.querySelector(".aiw-signin-trigger")).toBeNull();
+    expect(screen.queryByLabelText("Login")).toBeNull();
+    expect(screen.queryByLabelText("Loading authentication")).toBeNull();
   });
 
   it("uses installationId as clientId fallback", () => {
-    render(<ProfileWidgetRoot installationId="inst-1" />);
-    expect(screen.getByLabelText("Loading authentication")).toBeTruthy();
+    const { container } = render(<ProfileWidgetRoot installationId="inst-1" />);
+    expect(container.querySelector(".aiw-signin-trigger")).toBeNull();
+    expect(screen.queryByLabelText("Login")).toBeNull();
   });
 });
