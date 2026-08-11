@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { AuthGate, authDisplayMode } from "../../components/AuthGate.js";
 import {
-  AuthGate,
-  authDisplayMode,
-} from "../../components/AuthGate.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 import type { AuthState } from "@stawi/auth-runtime";
 
 const mockFetch = vi.fn();
@@ -12,7 +12,9 @@ const mockUpload = vi.fn();
 const mockGetClaims = vi.fn();
 const mockGetRoles = vi.fn();
 
-function mockAuthContext(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
+function mockAuthContext(
+  overrides: Partial<AuthContextValue> = {},
+): AuthContextValue {
   const runtime = {
     fetch: mockFetch,
     upload: mockUpload,
@@ -37,7 +39,10 @@ function mockAuthContext(overrides: Partial<AuthContextValue> = {}): AuthContext
   };
 }
 
-function renderWithAuth(authState: AuthState, ensureAuthenticated?: () => Promise<void>) {
+function renderWithAuth(
+  authState: AuthState,
+  ensureAuthenticated?: () => Promise<void>,
+) {
   // Profile chrome is shown for authenticated and refreshing — both need
   // a successful profile fetch so ProfileProvider can settle.
   if (authState === "authenticated" || authState === "refreshing") {

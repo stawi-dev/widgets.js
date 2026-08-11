@@ -61,11 +61,15 @@ export function ContactMethods() {
       </div>
 
       {profile.contacts.map((contact) => (
-        <ContactMethodItem key={contact.id} contact={contact} editing={editing} />
+        <ContactMethodItem
+          key={contact.id}
+          contact={contact}
+          editing={editing}
+        />
       ))}
 
-      {editing && (
-        adding ? (
+      {editing &&
+        (adding ? (
           <form onSubmit={handleAdd} style={{ marginTop: 8 }}>
             <input
               className="aiw-input"
@@ -101,8 +105,7 @@ export function ContactMethods() {
               {t("contacts.add")}
             </button>
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

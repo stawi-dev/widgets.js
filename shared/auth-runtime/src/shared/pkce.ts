@@ -20,7 +20,10 @@ export async function generateChallenge(verifier: string): Promise<string> {
   return base64Url(new Uint8Array(hash));
 }
 
-export interface PkcePair { verifier: string; challenge: string; }
+export interface PkcePair {
+  verifier: string;
+  challenge: string;
+}
 
 export async function generatePkcePair(): Promise<PkcePair> {
   const verifier = generateVerifier();

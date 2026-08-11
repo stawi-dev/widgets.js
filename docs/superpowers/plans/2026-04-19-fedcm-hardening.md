@@ -32,6 +32,7 @@
 **Files:** `shared/auth-runtime/src/shared/dom.d.ts`, `shared/auth-runtime/src/shared/fedcm.ts`, `shared/auth-runtime/src/shared/types.ts`.
 
 **Changes:**
+
 - Expand `dom.d.ts` to cover FedCM 2026: `IdentityProviderConfig` (nonce, fields, domainHint, loginHint, params), `IdentityCredentialRequestOptions` (mode: "passive"|"active"), `IdentityCredential` (isAutoSelected, type), `IdentityCredentialError`, `CredentialRequestOptions.signal`.
 - New `FedCMAttemptOptions` type: `{ mediation: CredentialMediationRequirement; mode?: "passive"|"active"; nonce?: string; fields?: string[]; accountHint?: string; loginHint?: string; domainHint?: string; params?: Record<string,string>; signal?: AbortSignal }`.
 - New `FedCMOutcome` sum type: `{ kind: "token"; token: string; autoSelected: boolean }` | `{ kind: "no-session"; loginUrl?: string }` | `{ kind: "dismissed" }` | `{ kind: "not-allowed" }` | `{ kind: "aborted" }` | `{ kind: "unsupported" }` | `{ kind: "error"; error: AuthError }`.
@@ -40,6 +41,7 @@
 - Add `AuthConfig.fedcm?: { nonce?: () => string; fields?: string[]; loginHint?: string; domainHint?: string; params?: Record<string,string> }` (embedder-provided overrides).
 
 **Commits:**
+
 - `feat(auth-runtime): extend FedCM ambient types to FedCM 2026 surface`
 - `feat(auth-runtime): typed FedCMOutcome; GET-first config probe; nonce/fields/hints passthrough`
 
@@ -48,6 +50,7 @@
 **Files:** `shared/auth-runtime/src/runtime.ts`, `shared/auth-runtime/src/worker/auth-worker.ts`, `shared/auth-runtime/src/shared/rpc.ts` (add `nonce` to `fedcm-exchange` request if worker path uses RPC).
 
 **Changes:**
+
 - Runtime generates a fresh 128-bit nonce per FedCM attempt (hex-encoded, from `crypto.getRandomValues`), passes to `attemptFedCM`, and hands nonce to the worker's `completeFedcm(idToken, expectedNonce)`.
 - Worker's `completeFedcm` verifies the ID token `nonce` claim equals expected nonce. Throw `AuthError("FEDCM_NONCE_MISMATCH", ...)` if not. Add error code to `AuthErrorCode` union.
 - Main-thread performs **iss** check on the decoded ID token before handing off to worker. Worker still re-verifies defensively. If main-thread check fails → `AuthError("FEDCM_ISS_MISMATCH")`.
@@ -60,6 +63,7 @@
 - Expose `runtime.fedcmAutoSelected()` → `boolean | null` (null until first attempt).
 
 **Commits:**
+
 - `feat(auth-runtime): bind FedCM id_tokens with per-attempt nonce`
 - `feat(auth-runtime): logout clears FedCM federation (preventSilentAccess + disconnect)`
 - `feat(auth-runtime): abort pending FedCM on destroy; iss check on main thread`
@@ -69,6 +73,7 @@
 **Files:** `shared/auth-runtime/src/runtime.ts`, `shared/auth-runtime/src/oauth-popup.ts` (add variant), new `shared/auth-runtime/src/login-url.ts`.
 
 **Changes:**
+
 - New `openLoginUrl(cfg, loginUrl): Promise<void>` helper. Opens a popup at `loginUrl`, listens for page to redirect to `redirectUri` (same origin as our `config.redirectUri`), then resolves. Reuses the same `postMessage + polling` mechanism as OAuth popup. Timeout 5 min.
 - `runtime.ensureAuthenticated()` flow:
   1. Try FedCM `mediation: "optional"` + `mode: "active"` (if supported).
@@ -84,6 +89,7 @@
 **Files:** `shared/auth-runtime/src/__tests__/setup.ts` (extend), new `shared/auth-runtime/src/__tests__/shared/fedcm.test.ts`, extend `shared/auth-runtime/src/__tests__/runtime.test.ts`.
 
 **Changes:**
+
 - Add FedCM polyfill class into the test setup. Controllable via `globalThis.__TEST_FEDCM = { next(): Outcome }` so each test sets the desired behavior.
 - New fedcm.test.ts cases:
   - Successful token return with `nonce` passed through
@@ -106,6 +112,7 @@
 **Files:** `packages/profile/README.md` (section added), new `docs/idp-fedcm-integration.md`.
 
 **Changes:**
+
 - New top-level "Deploying the IdP for FedCM" section in profile README with a pointer to `docs/idp-fedcm-integration.md`.
 - `docs/idp-fedcm-integration.md`: what the IdP operator must publish:
   - `/.well-known/web-identity` JSON shape + `login_url` field
@@ -120,6 +127,7 @@
 ## Self-review checklist
 
 Before merging to main:
+
 1. Every audit gap C1–C3, H1–H6, M1–M4, L4 has a landed commit + test.
 2. `FedCMOutcome` union is exhaustive (no `as any` in runtime).
 3. No call sites of `attemptFedCM` drop errors silently.

@@ -16,7 +16,9 @@ export function VerifyBanner({ onEnterCode }: VerifyBannerProps) {
   const pending = state.pendingVerification;
   if (!pending) return null;
 
-  const contact = state.profile?.contacts.find((c) => c.id === pending.contactId);
+  const contact = state.profile?.contacts.find(
+    (c) => c.id === pending.contactId,
+  );
   const label = contact?.value ?? t("verify.pendingFallback");
 
   return (

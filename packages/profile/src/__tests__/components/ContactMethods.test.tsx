@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ContactMethods } from "../../components/ContactMethods.js";
-import { ProfileContext, type ProfileContextValue } from "../../context/profile-context.js";
+import {
+  ProfileContext,
+  type ProfileContextValue,
+} from "../../context/profile-context.js";
 import type { ProfileState } from "../../types.js";
 
 const mockState: ProfileState = {
@@ -12,8 +15,20 @@ const mockState: ProfileState = {
     name: "Jane Doe",
     email: "jane@example.com",
     contacts: [
-      { id: "c1", type: "email", value: "jane@example.com", verified: true, primary: true },
-      { id: "c2", type: "phone", value: "+254700000000", verified: false, primary: false },
+      {
+        id: "c1",
+        type: "email",
+        value: "jane@example.com",
+        verified: true,
+        primary: true,
+      },
+      {
+        id: "c2",
+        type: "phone",
+        value: "+254700000000",
+        verified: false,
+        primary: false,
+      },
     ],
   },
   pendingVerification: null,
@@ -81,10 +96,14 @@ describe("ContactMethods", () => {
     renderContacts();
     enterEditMode();
     fireEvent.click(screen.getByText("+ Add Contact"));
-    expect(screen.getByPlaceholderText("email@example.com or +254...")).toBeTruthy();
+    expect(
+      screen.getByPlaceholderText("email@example.com or +254..."),
+    ).toBeTruthy();
     // Click pen again to exit edit mode
     fireEvent.click(screen.getByLabelText("Done editing"));
-    expect(screen.queryByPlaceholderText("email@example.com or +254...")).toBeNull();
+    expect(
+      screen.queryByPlaceholderText("email@example.com or +254..."),
+    ).toBeNull();
     expect(screen.queryByText("+ Add Contact")).toBeNull();
   });
 });

@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { AuthContext, type AuthContextValue } from "../src/context/auth-context.js";
-import { ProfileContext, type ProfileContextValue } from "../src/context/profile-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../src/context/auth-context.js";
+import {
+  ProfileContext,
+  type ProfileContextValue,
+} from "../src/context/profile-context.js";
 import { ProfilePopover } from "../src/components/ProfilePopover.js";
 import { AuthGate } from "../src/components/AuthGate.js";
 import { widgetStyles } from "../src/styles/styles.js";
@@ -25,7 +31,10 @@ function makeMockAuth(
     authState,
     runtime: {
       getRoles: async () => roles,
-      getApiClient: () => ({ fetch: async () => ({}), upload: async () => ({}) }),
+      getApiClient: () => ({
+        fetch: async () => ({}),
+        upload: async () => ({}),
+      }),
       getAccessToken: async () => "mock-token",
     } as AuthContextValue["runtime"],
     ensureAuthenticated: async () => {
@@ -43,7 +52,11 @@ interface MockWidgetProps {
   adminPanelUrl?: string;
 }
 
-function MockWidget({ profile: initialProfile, roles = [], adminPanelUrl }: MockWidgetProps) {
+function MockWidget({
+  profile: initialProfile,
+  roles = [],
+  adminPanelUrl,
+}: MockWidgetProps) {
   const [profile, setProfile] = useState(initialProfile);
 
   const state: ProfileState = {
@@ -71,7 +84,10 @@ function MockWidget({ profile: initialProfile, roles = [], adminPanelUrl }: Mock
       const id = `c-${Date.now()}`;
       setProfile((p) => ({
         ...p,
-        contacts: [...p.contacts, { id, type, value, verified: false, primary: false }],
+        contacts: [
+          ...p.contacts,
+          { id, type, value, verified: false, primary: false },
+        ],
       }));
     },
     removeContact: async (contactId) => {
@@ -116,7 +132,12 @@ function App() {
     <>
       <style>{playgroundCss}</style>
       <div style={{ padding: 40, fontFamily: "'Lora', Georgia, serif" }}>
-        <h1 style={{ marginBottom: 24, fontFamily: "'Poppins', system-ui, sans-serif" }}>
+        <h1
+          style={{
+            marginBottom: 24,
+            fontFamily: "'Poppins', system-ui, sans-serif",
+          }}
+        >
           Profile UI — Dev Playground
         </h1>
 

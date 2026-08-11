@@ -10,7 +10,10 @@ interface ProfilePopoverProps {
   onLogout?: () => void;
 }
 
-export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps) {
+export function ProfilePopover({
+  adminPanelUrl,
+  onLogout,
+}: ProfilePopoverProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +63,10 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
   const avatarSrc = profile?.picture || gravatarUrl;
 
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
+    <div
+      ref={containerRef}
+      style={{ position: "relative", display: "inline-block" }}
+    >
       <button
         ref={triggerRef}
         className="aiw-trigger"
@@ -69,7 +75,13 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
         aria-expanded={open}
       >
         {avatarSrc ? (
-          <img src={avatarSrc} alt={profile?.name ?? t("profile.fallbackName")} />
+          <img
+            src={avatarSrc}
+            alt={profile?.name ?? t("profile.fallbackName")}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
         ) : (
           <span className="aiw-trigger-initials">
             {profile ? getInitials(profile.name) : "?"}

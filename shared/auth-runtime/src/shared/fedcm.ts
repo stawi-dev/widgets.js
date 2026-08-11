@@ -66,7 +66,9 @@ export function isFedCMSupported(): boolean {
   );
 }
 
-export async function probeFedCMConfig(cfg: ResolvedConfig): Promise<FedCMConfigProbe> {
+export async function probeFedCMConfig(
+  cfg: ResolvedConfig,
+): Promise<FedCMConfigProbe> {
   const key = cfg.fedcmBaseUrl + cfg.fedcmConfigUrl;
   const cached = readProbeCache(key);
   if (cached) return cached;
@@ -76,14 +78,20 @@ export async function probeFedCMConfig(cfg: ResolvedConfig): Promise<FedCMConfig
   try {
     const r = await fetchT(
       url,
-      { method: "GET", headers: { Accept: "application/json" }, credentials: "omit" },
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "omit",
+      },
       cfg.timeouts.discovery,
     );
     if (r.ok) {
       try {
         const body = (await r.json()) as unknown;
         const loginUrl =
-          body && typeof body === "object" && typeof (body as Record<string, unknown>).login_url === "string"
+          body &&
+          typeof body === "object" &&
+          typeof (body as Record<string, unknown>).login_url === "string"
             ? ((body as Record<string, unknown>).login_url as string)
             : undefined;
         probe = loginUrl ? { available: true, loginUrl } : { available: true };
@@ -130,7 +138,10 @@ export async function attemptFedCM(
       signal: opts.signal,
     })) as (IdentityCredential & { type?: string }) | null;
 
-    if (credential && (credential.type === "identity" || typeof credential.token === "string")) {
+    if (
+      credential &&
+      (credential.type === "identity" || typeof credential.token === "string")
+    ) {
       return {
         kind: "token",
         token: credential.token,
@@ -147,12 +158,19 @@ export async function attemptFedCM(
       return { kind: "no-session", loginUrl: probe.loginUrl };
     }
     if (name === "NotAllowedError") {
-      return opts.mediation === "silent" ? { kind: "not-allowed" } : { kind: "dismissed" };
+      return opts.mediation === "silent"
+        ? { kind: "not-allowed" }
+        : { kind: "dismissed" };
     }
 
     const ICError =
-      typeof IdentityCredentialError !== "undefined" ? IdentityCredentialError : undefined;
-    if ((ICError && err instanceof ICError) || name === "IdentityCredentialError") {
+      typeof IdentityCredentialError !== "undefined"
+        ? IdentityCredentialError
+        : undefined;
+    if (
+      (ICError && err instanceof ICError) ||
+      name === "IdentityCredentialError"
+    ) {
       return {
         kind: "error",
         message: e.message ?? "IdentityCredentialError",

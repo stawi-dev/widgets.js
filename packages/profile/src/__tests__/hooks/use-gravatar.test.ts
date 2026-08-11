@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { useGravatarUrl } from "../../hooks/use-gravatar.js";
-import {
-  HooksContext,
-  type WidgetHooks,
-} from "../../context/hooks-context.js";
+import { HooksContext, type WidgetHooks } from "../../context/hooks-context.js";
 
 // Known SHA-256 of "test@example.com"
 const KNOWN_HASH =
@@ -20,9 +17,11 @@ beforeEach(() => {
   if (!globalThis.crypto?.subtle) {
     vi.stubGlobal("crypto", {
       subtle: {
-        digest: vi.fn().mockImplementation(async (_algo: string, data: BufferSource) => {
-          return new ArrayBuffer((data as Uint8Array).byteLength);
-        }),
+        digest: vi
+          .fn()
+          .mockImplementation(async (_algo: string, data: BufferSource) => {
+            return new ArrayBuffer((data as Uint8Array).byteLength);
+          }),
       },
     });
   }
@@ -50,7 +49,7 @@ describe("useGravatarUrl", () => {
     });
 
     expect(result.current).toBe(
-      `https://www.gravatar.com/avatar/${KNOWN_HASH}?s=80&d=404`,
+      `https://www.gravatar.com/avatar/${KNOWN_HASH}?s=80&d=identicon`,
     );
   });
 
@@ -79,7 +78,7 @@ describe("useGravatarUrl", () => {
     });
 
     expect(result.current).toBe(
-      `https://www.gravatar.com/avatar/${KNOWN_HASH}?s=40&d=404`,
+      `https://www.gravatar.com/avatar/${KNOWN_HASH}?s=40&d=identicon`,
     );
   });
 
@@ -105,6 +104,6 @@ describe("useGravatarUrl", () => {
     });
 
     expect(result.current).toContain("https://www.gravatar.com/avatar/");
-    expect(result.current).toContain("?s=80&d=404");
+    expect(result.current).toContain("?s=80&d=identicon");
   });
 });

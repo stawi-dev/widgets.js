@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ProfileProvider } from "../../context/profile-context.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 import { useProfile } from "../../hooks/use-profile.js";
 import { ContactType, ProfileType } from "../../types.js";
 
@@ -239,7 +242,9 @@ describe("ProfileContext - full coverage", () => {
   it("uploadAvatar calls runtime.upload and updates picture", async () => {
     const { result } = await renderAndLoad();
     mockUpload.mockResolvedValueOnce({
-      data: { properties: { au_avater_uri: "https://cdn.example.com/avatar.png" } },
+      data: {
+        properties: { au_avater_uri: "https://cdn.example.com/avatar.png" },
+      },
     });
 
     const file = new File(["data"], "avatar.png", { type: "image/png" });

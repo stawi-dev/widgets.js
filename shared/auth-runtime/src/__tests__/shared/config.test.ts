@@ -7,12 +7,21 @@ describe("resolveConfig", () => {
     expect(() => resolveConfig({} as any)).toThrow(AuthError);
   });
   it("strips trailing slashes and applies defaults", () => {
-    const c = resolveConfig({ clientId: "abc", idpBaseUrl: "https://i/", apiBaseUrl: "https://a/" });
+    const c = resolveConfig({
+      clientId: "abc",
+      idpBaseUrl: "https://i/",
+      apiBaseUrl: "https://a/",
+    });
     expect(c.idpBaseUrl).toBe("https://i");
     expect(c.apiBaseUrl).toBe("https://a");
     expect(c.scopes).toContain("openid");
     expect(c.scopes).toContain("offline_access");
-    expect(c.timeouts).toEqual({ discovery: 10000, token: 10000, api: 30000, upload: 60000 });
+    expect(c.timeouts).toEqual({
+      discovery: 10000,
+      token: 10000,
+      api: 30000,
+      upload: 60000,
+    });
   });
   it("honors timeout overrides partially", () => {
     const c = resolveConfig({ clientId: "a", timeouts: { api: 5000 } });

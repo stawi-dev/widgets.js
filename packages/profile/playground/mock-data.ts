@@ -8,9 +8,27 @@ export const profileWithPicture: ProfileData = {
   language: "en",
   country: "US",
   contacts: [
-    { id: "c1", type: "email", value: "alice@example.com", verified: true, primary: true },
-    { id: "c2", type: "phone", value: "+1 555-0123", verified: true, primary: false },
-    { id: "c3", type: "email", value: "alice.work@corp.com", verified: false, primary: false },
+    {
+      id: "c1",
+      type: "email",
+      value: "alice@example.com",
+      verified: true,
+      primary: true,
+    },
+    {
+      id: "c2",
+      type: "phone",
+      value: "+1 555-0123",
+      verified: true,
+      primary: false,
+    },
+    {
+      id: "c3",
+      type: "email",
+      value: "alice.work@corp.com",
+      verified: false,
+      primary: false,
+    },
   ],
 };
 
@@ -21,7 +39,19 @@ export const profileWithoutPicture: ProfileData = {
   language: "fr",
   country: "KE",
   contacts: [
-    { id: "c4", type: "email", value: "bob.smith@example.com", verified: true, primary: true },
-    { id: "c5", type: "phone", value: "+254 700-123456", verified: false, primary: false },
+    {
+      id: "c4",
+      type: "email",
+      value: "bob.smith@example.com",
+      verified: true,
+      primary: true,
+    },
+    {
+      id: "c5",
+      type: "phone",
+      value: "+254 700-123456",
+      verified: false,
+      primary: false,
+    },
   ],
 };

@@ -10,7 +10,10 @@ interface ContactMethodItemProps {
   editing: boolean;
 }
 
-export function ContactMethodItem({ contact, editing }: ContactMethodItemProps) {
+export function ContactMethodItem({
+  contact,
+  editing,
+}: ContactMethodItemProps) {
   const { removeContact, sendVerification } = useProfile();
   const hooks = useContext(HooksContext);
   const t = useT();
@@ -35,7 +38,11 @@ export function ContactMethodItem({ contact, editing }: ContactMethodItemProps) 
   return (
     <div className="aiw-contact-item">
       <span className="aiw-contact-icon">
-        {contact.type === "email" ? <EmailIcon size={16} /> : <PhoneIcon size={16} />}
+        {contact.type === "email" ? (
+          <EmailIcon size={16} />
+        ) : (
+          <PhoneIcon size={16} />
+        )}
       </span>
       <span className="aiw-contact-value">{contact.value}</span>
       {editing && (

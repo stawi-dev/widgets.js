@@ -4,9 +4,20 @@ import { proof, rememberNonce, makeDpopContext } from "../../worker/dpop.js";
 
 function decodeJwt(jwt: string) {
   const [h, p] = jwt.split(".");
-  const dec = (s: string) => JSON.parse(new TextDecoder().decode(
-    Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length/4)*4, "=")), c => c.charCodeAt(0))
-  ));
+  const dec = (s: string) =>
+    JSON.parse(
+      new TextDecoder().decode(
+        Uint8Array.from(
+          atob(
+            s
+              .replace(/-/g, "+")
+              .replace(/_/g, "/")
+              .padEnd(Math.ceil(s.length / 4) * 4, "="),
+          ),
+          (c) => c.charCodeAt(0),
+        ),
+      ),
+    );
   return { header: dec(h), payload: dec(p) };
 }
 
@@ -28,7 +39,11 @@ describe("dpop", () => {
   it("includes ath claim when accessToken provided", async () => {
     const kp = await generateDpopKey();
     const ctx = await makeDpopContext(kp);
-    const jwt = await proof(ctx, { htm: "GET", htu: "https://a/r", accessToken: "at" });
+    const jwt = await proof(ctx, {
+      htm: "GET",
+      htu: "https://a/r",
+      accessToken: "at",
+    });
     const { payload } = decodeJwt(jwt);
     expect(payload.ath).toMatch(/^[A-Za-z0-9_-]+$/);
   });

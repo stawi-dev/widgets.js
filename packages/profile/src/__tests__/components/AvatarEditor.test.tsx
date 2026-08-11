@@ -1,11 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { AvatarEditor } from "../../components/AvatarEditor.js";
-import { ProfileContext, type ProfileContextValue } from "../../context/profile-context.js";
+import {
+  ProfileContext,
+  type ProfileContextValue,
+} from "../../context/profile-context.js";
 import { HooksContext } from "../../context/hooks-context.js";
 import type { ProfileState } from "../../types.js";
 
-function makeState(overrides: Partial<ProfileState["profile"] & object> = {}): ProfileState {
+function makeState(
+  overrides: Partial<ProfileState["profile"] & object> = {},
+): ProfileState {
   return {
     loading: false,
     error: null,

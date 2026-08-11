@@ -57,13 +57,26 @@ function isCryptoKeyPairLike(kp: unknown): kp is CryptoKeyPair {
 function isValid(v: unknown): v is PersistedShape {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown> & {
-    wrappedRT?: { iv?: { byteLength?: number } | unknown; ciphertext?: { byteLength?: number } | unknown };
+    wrappedRT?: {
+      iv?: { byteLength?: number } | unknown;
+      ciphertext?: { byteLength?: number } | unknown;
+    };
   };
   if (!o.wrappedRT || typeof o.wrappedRT !== "object") return false;
   const iv = o.wrappedRT.iv;
   const ct = o.wrappedRT.ciphertext;
-  const ivOk = !!(iv && (iv instanceof Uint8Array || (iv instanceof Array) || (iv as { byteLength?: number }).byteLength !== undefined));
-  const ctOk = !!(ct && (ct instanceof Uint8Array || (ct instanceof Array) || (ct as { byteLength?: number }).byteLength !== undefined));
+  const ivOk = !!(
+    iv &&
+    (iv instanceof Uint8Array ||
+      iv instanceof Array ||
+      (iv as { byteLength?: number }).byteLength !== undefined)
+  );
+  const ctOk = !!(
+    ct &&
+    (ct instanceof Uint8Array ||
+      ct instanceof Array ||
+      (ct as { byteLength?: number }).byteLength !== undefined)
+  );
   if (!ivOk || !ctOk) return false;
   // Reject sessions persisted by pre-fix builds that dropped the keys —
   // forces a one-time re-login on upgrade rather than letting init wipe
@@ -96,10 +109,15 @@ export async function loadSession(namespace: string): Promise<Session | null> {
       };
       req.onerror = () => resolve(null);
     });
-  } finally { db.close(); }
+  } finally {
+    db.close();
+  }
 }
 
-export async function saveSession(namespace: string, s: Omit<Session, "updatedAt">): Promise<void> {
+export async function saveSession(
+  namespace: string,
+  s: Omit<Session, "updatedAt">,
+): Promise<void> {
   const db = await openDb();
   try {
     const persisted: PersistedShape = {
@@ -114,7 +132,9 @@ export async function saveSession(namespace: string, s: Omit<Session, "updatedAt
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } finally { db.close(); }
+  } finally {
+    db.close();
+  }
 }
 
 export async function clearSession(namespace: string): Promise<void> {
@@ -125,5 +145,7 @@ export async function clearSession(namespace: string): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } finally { db.close(); }
+  } finally {
+    db.close();
+  }
 }

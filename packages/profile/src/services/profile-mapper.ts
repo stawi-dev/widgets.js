@@ -29,20 +29,43 @@ function mapContact(
   };
 }
 
-export function profileObjectToProfileData(
-  proto: ProfileObject,
-): ProfileData {
+/** True when a contact row is an email (numeric enum, name, or string). */
+function isEmailContact(type: unknown): boolean {
+  return (
+    type === ContactType.EMAIL ||
+    type === 0 ||
+    type === "EMAIL" ||
+    type === "email" ||
+    type === "ContactType_EMAIL"
+  );
+}
+
+/**
+ * Prefer a verified email for Gravatar/display; fall back to any email contact.
+ * Users often have an email on file that is not yet verified — still use it
+ * for avatar fallback rather than blanking to initials only.
+ */
+export function pickEmailFromContacts(
+  contacts: { type: unknown; detail?: string; verified?: boolean }[],
+): string {
+  const emails = contacts.filter(
+    (c) => isEmailContact(c.type) && !!c.detail?.trim(),
+  );
+  if (emails.length === 0) return "";
+  const verified = emails.find((c) => c.verified);
+  return (verified ?? emails[0])!.detail!.trim();
+}
+
+export function profileObjectToProfileData(proto: ProfileObject): ProfileData {
   const props = proto.properties;
   const name = (props.au_name as string) ?? "";
-  const picture = sanitizePictureUrl((props.au_avater_uri as string) || undefined);
+  const picture = sanitizePictureUrl(
+    (props.au_avater_uri as string) || undefined,
+  );
   const language = (props.language as string) || undefined;
   const country = (props.country as string) || undefined;
 
-  // Find first verified email as primary email
-  const firstVerifiedEmail = proto.contacts.find(
-    (c) => c.type === ContactType.EMAIL && c.verified,
-  );
-  const email = firstVerifiedEmail?.detail ?? "";
+  const email = pickEmailFromContacts(proto.contacts);
 
   const contacts = proto.contacts.map((c) => mapContact(c, email));
 
@@ -71,10 +94,12 @@ export function userInfoToProfileData(resp: UserInfoResponse): ProfileData {
   const name = resp.name ?? "";
   const picture = sanitizePictureUrl(resp.url || undefined);
   const contactsIn = resp.contacts ?? [];
-  const firstVerifiedEmail = contactsIn.find(
-    (c) => c.type === ContactType.EMAIL && c.verified,
-  );
-  const email = firstVerifiedEmail?.detail ?? "";
+  // Prefer contact-derived email; allow optional top-level email if present.
+  const email =
+    pickEmailFromContacts(contactsIn) ||
+    (typeof (resp as { email?: string }).email === "string"
+      ? (resp as { email?: string }).email!.trim()
+      : "");
   const contacts = contactsIn.map((c) => mapContact(c, email));
   return {
     id: resp.sub,

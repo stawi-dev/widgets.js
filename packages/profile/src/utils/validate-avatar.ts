@@ -21,13 +21,17 @@ function startsWith(bytes: Uint8Array, sig: number[]): boolean {
 }
 
 async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
-  if (typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === "function") {
+  if (
+    typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> })
+      .arrayBuffer === "function"
+  ) {
     return blob.arrayBuffer();
   }
   return new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as ArrayBuffer);
-    reader.onerror = () => reject(reader.error ?? new Error("FileReader error"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("FileReader error"));
     reader.readAsArrayBuffer(blob);
   });
 }

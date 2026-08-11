@@ -16,7 +16,10 @@ export interface OidcDiscovery {
 const cache = new Map<string, OidcDiscovery>();
 const inflight = new Map<string, Promise<OidcDiscovery>>();
 
-export function clearDiscoveryCache() { cache.clear(); inflight.clear(); }
+export function clearDiscoveryCache() {
+  cache.clear();
+  inflight.clear();
+}
 
 export function _setDiscoveryForTest(idpBaseUrl: string, doc: OidcDiscovery) {
   cache.set(idpBaseUrl.replace(/\/$/, ""), doc);
@@ -36,8 +39,13 @@ export async function getDiscovery(
   const pending = inflight.get(key);
   if (pending) return pending;
   const p = doFetch(key, timeouts.discovery)
-    .then((d) => { cache.set(key, d); return d; })
-    .finally(() => { inflight.delete(key); });
+    .then((d) => {
+      cache.set(key, d);
+      return d;
+    })
+    .finally(() => {
+      inflight.delete(key);
+    });
   inflight.set(key, p);
   return p;
 }
@@ -45,20 +53,37 @@ export async function getDiscovery(
 async function doFetch(idp: string, timeoutMs: number): Promise<OidcDiscovery> {
   const url = `${idp}/.well-known/openid-configuration`;
   let res: Response;
-  try { res = await fetchT(url, { credentials: "omit" }, timeoutMs); }
-  catch (err) { throw new AuthError("DISCOVERY_FAILED", `discovery fetch failed ${url}`, err); }
-  if (!res.ok) throw new AuthError("DISCOVERY_FAILED", `discovery HTTP ${res.status} ${url}`);
+  try {
+    res = await fetchT(url, { credentials: "omit" }, timeoutMs);
+  } catch (err) {
+    throw new AuthError(
+      "DISCOVERY_FAILED",
+      `discovery fetch failed ${url}`,
+      err,
+    );
+  }
+  if (!res.ok)
+    throw new AuthError(
+      "DISCOVERY_FAILED",
+      `discovery HTTP ${res.status} ${url}`,
+    );
   let body: unknown;
-  try { body = await res.json(); }
-  catch (err) { throw new AuthError("DISCOVERY_FAILED", `discovery non-JSON ${url}`, err); }
-  if (!isValid(body)) throw new AuthError("DISCOVERY_FAILED", `discovery missing fields ${url}`);
+  try {
+    body = await res.json();
+  } catch (err) {
+    throw new AuthError("DISCOVERY_FAILED", `discovery non-JSON ${url}`, err);
+  }
+  if (!isValid(body))
+    throw new AuthError("DISCOVERY_FAILED", `discovery missing fields ${url}`);
   return body;
 }
 
 function isValid(v: unknown): v is OidcDiscovery {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
-  return typeof o.issuer === "string"
-    && typeof o.authorization_endpoint === "string"
-    && typeof o.token_endpoint === "string";
+  return (
+    typeof o.issuer === "string" &&
+    typeof o.authorization_endpoint === "string" &&
+    typeof o.token_endpoint === "string"
+  );
 }

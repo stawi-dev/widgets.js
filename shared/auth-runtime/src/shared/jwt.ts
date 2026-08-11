@@ -12,9 +12,15 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
 export function extractRolesFromToken(token: string): string[] {
   try {
     const p = decodeJwtPayload(token);
-    if (Array.isArray(p.roles)) return (p.roles as unknown[]).filter((r): r is string => typeof r === "string");
+    if (Array.isArray(p.roles))
+      return (p.roles as unknown[]).filter(
+        (r): r is string => typeof r === "string",
+      );
     const r = (p.realm_access as { roles?: unknown })?.roles;
-    if (Array.isArray(r)) return (r as unknown[]).filter((x): x is string => typeof x === "string");
+    if (Array.isArray(r))
+      return (r as unknown[]).filter((x): x is string => typeof x === "string");
     return [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }

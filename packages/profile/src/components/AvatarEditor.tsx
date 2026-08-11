@@ -58,7 +58,14 @@ export function AvatarEditor({
         }}
       >
         {avatarSrc ? (
-          <img src={avatarSrc} alt={profile.name} />
+          <img
+            src={avatarSrc}
+            alt={profile.name}
+            onError={(e) => {
+              // Drop broken custom/Gravatar URLs so initials show.
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
         ) : (
           <span className="aiw-avatar-initials">
             {getInitials(profile.name)}

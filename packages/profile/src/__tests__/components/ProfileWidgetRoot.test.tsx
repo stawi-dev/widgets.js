@@ -28,10 +28,7 @@ import { ProfileWidgetRoot } from "../../components/ProfileWidgetRoot.js";
 describe("ProfileWidgetRoot", () => {
   it("renders nothing while auth is initializing", () => {
     const { container } = render(
-      <ProfileWidgetRoot
-        installationId="test-inst"
-        clientId="test-client"
-      />,
+      <ProfileWidgetRoot installationId="test-inst" clientId="test-client" />,
     );
     // Display FSM: initializing → hidden (no login flash, no loader chrome)
     expect(container.querySelector(".aiw-signin-trigger")).toBeNull();

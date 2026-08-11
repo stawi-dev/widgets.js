@@ -138,31 +138,38 @@ describe("attemptFedCM error-name → outcome mapping", () => {
     ) as unknown as typeof fetch;
 
     // Pretend FedCM is supported: stub window.IdentityCredential + navigator.credentials.
-    originalIdentityCredential = (window as unknown as { IdentityCredential?: unknown })
-      .IdentityCredential;
+    originalIdentityCredential = (
+      window as unknown as { IdentityCredential?: unknown }
+    ).IdentityCredential;
     (window as unknown as { IdentityCredential: unknown }).IdentityCredential =
       function IdentityCredential() {} as unknown;
 
-    originalCredentials = (navigator as unknown as { credentials?: unknown }).credentials;
+    originalCredentials = (navigator as unknown as { credentials?: unknown })
+      .credentials;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     if (originalIdentityCredential === undefined) {
-      delete (window as unknown as { IdentityCredential?: unknown }).IdentityCredential;
+      delete (window as unknown as { IdentityCredential?: unknown })
+        .IdentityCredential;
     } else {
-      (window as unknown as { IdentityCredential: unknown }).IdentityCredential =
-        originalIdentityCredential;
+      (
+        window as unknown as { IdentityCredential: unknown }
+      ).IdentityCredential = originalIdentityCredential;
     }
     if (originalCredentials === undefined) {
       delete (navigator as unknown as { credentials?: unknown }).credentials;
     } else {
-      (navigator as unknown as { credentials: unknown }).credentials = originalCredentials;
+      (navigator as unknown as { credentials: unknown }).credentials =
+        originalCredentials;
     }
   });
 
   function stubCredentialsGet(impl: () => Promise<unknown>) {
-    (navigator as unknown as { credentials: { get: typeof impl } }).credentials = {
+    (
+      navigator as unknown as { credentials: { get: typeof impl } }
+    ).credentials = {
       get: impl,
     };
   }
@@ -184,7 +191,10 @@ describe("attemptFedCM error-name → outcome mapping", () => {
       return Promise.reject(e);
     });
     const outcome = await attemptFedCM(baseCfg, { mediation: "optional" });
-    expect(outcome).toEqual({ kind: "no-session", loginUrl: "https://i/login" });
+    expect(outcome).toEqual({
+      kind: "no-session",
+      loginUrl: "https://i/login",
+    });
   });
 
   it("maps NotAllowedError → dismissed for mediation=optional", async () => {
@@ -233,9 +243,17 @@ describe("attemptFedCM error-name → outcome mapping", () => {
 
   it("returns token outcome on success", async () => {
     stubCredentialsGet(() =>
-      Promise.resolve({ type: "identity", token: "abc.def.ghi", isAutoSelected: true }),
+      Promise.resolve({
+        type: "identity",
+        token: "abc.def.ghi",
+        isAutoSelected: true,
+      }),
     );
     const outcome = await attemptFedCM(baseCfg, { mediation: "optional" });
-    expect(outcome).toEqual({ kind: "token", token: "abc.def.ghi", autoSelected: true });
+    expect(outcome).toEqual({
+      kind: "token",
+      token: "abc.def.ghi",
+      autoSelected: true,
+    });
   });
 });

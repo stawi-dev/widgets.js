@@ -43,10 +43,8 @@ export function authDisplayMode(authState: AuthState): AuthDisplayMode {
 const SIGNIN_ERROR_MESSAGES: Record<string, string> = {
   OAUTH_POPUP_BLOCKED:
     "Pop-ups are blocked for this site. Allow pop-ups and try again.",
-  OAUTH_POPUP_TIMEOUT:
-    "Sign-in took too long to complete. Please try again.",
-  OAUTH_STATE_MISMATCH:
-    "Sign-in session expired. Please try again.",
+  OAUTH_POPUP_TIMEOUT: "Sign-in took too long to complete. Please try again.",
+  OAUTH_STATE_MISMATCH: "Sign-in session expired. Please try again.",
   TOKEN_EXCHANGE_FAILED:
     "Couldn't exchange authorization code — contact support if this persists.",
   NETWORK_ERROR: "Network error — please check your connection and retry.",

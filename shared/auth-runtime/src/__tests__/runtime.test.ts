@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createAuthRuntime } from "../runtime.js";
-import { _setDiscoveryForTest, clearDiscoveryCache } from "../shared/discovery.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../shared/discovery.js";
 
 beforeEach(() => {
   clearDiscoveryCache();
   _setDiscoveryForTest("https://i", {
-    issuer: "https://i", authorization_endpoint: "https://i/auth", token_endpoint: "https://i/token",
+    issuer: "https://i",
+    authorization_endpoint: "https://i/auth",
+    token_endpoint: "https://i/token",
     dpop_signing_alg_values_supported: ["ES256"],
   });
   globalThis.fetch = vi.fn();
@@ -13,27 +18,50 @@ beforeEach(() => {
 
 afterEach(() => {
   // Restore any mutations to navigator.credentials / IdentityCredential set up by tests.
-  try { delete (globalThis as unknown as { IdentityCredential?: unknown }).IdentityCredential; } catch { /* ignore */ }
+  try {
+    delete (globalThis as unknown as { IdentityCredential?: unknown })
+      .IdentityCredential;
+  } catch {
+    /* ignore */
+  }
   if ((navigator as unknown as { credentials?: unknown }).credentials) {
-    try { delete (navigator as unknown as { credentials?: unknown }).credentials; } catch { /* ignore */ }
+    try {
+      delete (navigator as unknown as { credentials?: unknown }).credentials;
+    } catch {
+      /* ignore */
+    }
   }
 });
 
-function waitForState(rt: ReturnType<typeof createAuthRuntime>, target: string): Promise<void> {
+function waitForState(
+  rt: ReturnType<typeof createAuthRuntime>,
+  target: string,
+): Promise<void> {
   return new Promise<void>((resolve) => {
     const off = rt.onAuthStateChange((s) => {
-      if (s === target) { off(); resolve(); }
+      if (s === target) {
+        off();
+        resolve();
+      }
     });
   });
 }
 
 describe("createAuthRuntime", () => {
   it("starts unauthenticated with no session", async () => {
-    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    const rt = createAuthRuntime({
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
+      skipFedCM: true,
+    });
     // wait for init
     await new Promise<void>((resolve) => {
       const off = rt.onAuthStateChange((s) => {
-        if (s !== "initializing") { off(); resolve(); }
+        if (s !== "initializing") {
+          off();
+          resolve();
+        }
       });
     });
     expect(rt.getState()).toBe("unauthenticated");
@@ -52,7 +80,12 @@ describe("createAuthRuntime", () => {
       configurable: true,
       value: { preventSilentAccess, get: vi.fn() },
     });
-    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    const rt = createAuthRuntime({
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
+      skipFedCM: true,
+    });
     await waitForState(rt, "unauthenticated");
     await rt.logout();
     expect(preventSilentAccess).toHaveBeenCalled();
@@ -61,14 +94,22 @@ describe("createAuthRuntime", () => {
 
   it("logout calls IdentityCredential.disconnect when available", async () => {
     const disconnect = vi.fn().mockResolvedValue(undefined);
-    (globalThis as unknown as { IdentityCredential: { disconnect: typeof disconnect } }).IdentityCredential =
-      { disconnect };
+    (
+      globalThis as unknown as {
+        IdentityCredential: { disconnect: typeof disconnect };
+      }
+    ).IdentityCredential = { disconnect };
     Object.defineProperty(navigator, "credentials", {
       configurable: true,
-      value: { preventSilentAccess: vi.fn().mockResolvedValue(undefined), get: vi.fn() },
+      value: {
+        preventSilentAccess: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn(),
+      },
     });
     const rt = createAuthRuntime({
-      clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a",
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
       fedcmBaseUrl: "https://i",
       fedcmConfigUrl: "/.well-known/web-identity",
       skipFedCM: true,
@@ -92,9 +133,16 @@ describe("createAuthRuntime", () => {
         created.push(this);
       }
     }
-    (globalThis as unknown as { AbortController: typeof AbortController }).AbortController = SpyAC;
+    (
+      globalThis as unknown as { AbortController: typeof AbortController }
+    ).AbortController = SpyAC;
     try {
-      const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+      const rt = createAuthRuntime({
+        clientId: "c",
+        idpBaseUrl: "https://i",
+        apiBaseUrl: "https://a",
+        skipFedCM: true,
+      });
       await waitForState(rt, "unauthenticated");
       // The runtime owns at least one AbortController.
       expect(created.length).toBeGreaterThan(0);
@@ -103,7 +151,9 @@ describe("createAuthRuntime", () => {
       rt.destroy();
       expect(runtimeAbort.signal.aborted).toBe(true);
     } finally {
-      (globalThis as unknown as { AbortController: typeof AbortController }).AbortController = RealAC;
+      (
+        globalThis as unknown as { AbortController: typeof AbortController }
+      ).AbortController = RealAC;
     }
   });
 
@@ -112,8 +162,15 @@ describe("createAuthRuntime", () => {
       configurable: true,
       value: { preventSilentAccess: undefined, get: vi.fn() },
     });
-    (globalThis as unknown as { IdentityCredential?: unknown }).IdentityCredential = undefined;
-    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    (
+      globalThis as unknown as { IdentityCredential?: unknown }
+    ).IdentityCredential = undefined;
+    const rt = createAuthRuntime({
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
+      skipFedCM: true,
+    });
     await waitForState(rt, "unauthenticated");
     await expect(rt.logout()).resolves.toBeUndefined();
     rt.destroy();
@@ -128,19 +185,35 @@ describe("createAuthRuntime", () => {
     });
     Object.defineProperty(navigator, "credentials", {
       configurable: true,
-      value: { preventSilentAccess: vi.fn().mockResolvedValue(undefined), get: vi.fn() },
+      value: {
+        preventSilentAccess: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn(),
+      },
     });
-    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    const rt = createAuthRuntime({
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
+      skipFedCM: true,
+    });
     await waitForState(rt, "unauthenticated");
     // Without an authenticated session endSessionUrl is typically empty; this
     // still exercises the redirectToIdP option branch without navigating away.
     await expect(rt.logout({ redirectToIdP: true })).resolves.toBeUndefined();
     rt.destroy();
-    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   it("onFedcmEvent returns unsubscribe function", async () => {
-    const rt = createAuthRuntime({ clientId: "c", idpBaseUrl: "https://i", apiBaseUrl: "https://a", skipFedCM: true });
+    const rt = createAuthRuntime({
+      clientId: "c",
+      idpBaseUrl: "https://i",
+      apiBaseUrl: "https://a",
+      skipFedCM: true,
+    });
     await waitForState(rt, "unauthenticated");
     const cb = vi.fn();
     const off = rt.onFedcmEvent(cb);

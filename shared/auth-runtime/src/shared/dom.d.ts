@@ -29,10 +29,14 @@ interface IdentityCredentialError extends Error {
 }
 
 interface IdentityCredentialErrorConstructor {
-  new (message?: string, options?: { code?: string; url?: string }): IdentityCredentialError;
+  new (
+    message?: string,
+    options?: { code?: string; url?: string },
+  ): IdentityCredentialError;
   readonly prototype: IdentityCredentialError;
 }
-declare const IdentityCredentialError: IdentityCredentialErrorConstructor | undefined;
+declare const IdentityCredentialError:
+  IdentityCredentialErrorConstructor | undefined;
 
 interface IdentityCredentialDisconnectOptions {
   configURL: string;

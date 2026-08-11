@@ -70,9 +70,7 @@ export function ProfileCard({ adminPanelUrl, onLogout }: ProfileCardProps) {
 
       <LogoutButton onLogout={onLogout} />
 
-      {pending && !dialogOpen && (
-        <VerifyBanner onEnterCode={handleEnterCode} />
-      )}
+      {pending && !dialogOpen && <VerifyBanner onEnterCode={handleEnterCode} />}
       <VerifyDialog open={dialogOpen} onMinimize={handleMinimize} />
     </>
   );

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { _setDiscoveryForTest, clearDiscoveryCache } from "../shared/discovery.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../shared/discovery.js";
 
 // Module-level mocks — installed via vi.mock before importing the runtime.
 const attemptFedCMMock = vi.fn();
@@ -22,10 +25,16 @@ vi.mock("../oauth-redirect.js", () => ({
 // Import after mocks are registered.
 import { createAuthRuntime } from "../runtime.js";
 
-function waitForState(rt: ReturnType<typeof createAuthRuntime>, target: string): Promise<void> {
+function waitForState(
+  rt: ReturnType<typeof createAuthRuntime>,
+  target: string,
+): Promise<void> {
   return new Promise<void>((resolve) => {
     const off = rt.onAuthStateChange((s) => {
-      if (s === target) { off(); resolve(); }
+      if (s === target) {
+        off();
+        resolve();
+      }
     });
   });
 }
@@ -47,9 +56,18 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { delete (globalThis as unknown as { IdentityCredential?: unknown }).IdentityCredential; } catch { /* ignore */ }
+  try {
+    delete (globalThis as unknown as { IdentityCredential?: unknown })
+      .IdentityCredential;
+  } catch {
+    /* ignore */
+  }
   if ((navigator as unknown as { credentials?: unknown }).credentials) {
-    try { delete (navigator as unknown as { credentials?: unknown }).credentials; } catch { /* ignore */ }
+    try {
+      delete (navigator as unknown as { credentials?: unknown }).credentials;
+    } catch {
+      /* ignore */
+    }
   }
 });
 
@@ -75,7 +93,10 @@ describe("ensureAuthenticated() active-mode + redirect fallback", () => {
   });
 
   it("falls through to redirect on no-session (with or without loginUrl)", async () => {
-    attemptFedCMMock.mockResolvedValue({ kind: "no-session", loginUrl: "https://i/login" });
+    attemptFedCMMock.mockResolvedValue({
+      kind: "no-session",
+      loginUrl: "https://i/login",
+    });
 
     const rt = createAuthRuntime({
       clientId: "c",
@@ -101,7 +122,9 @@ describe("ensureAuthenticated() active-mode + redirect fallback", () => {
     });
     await waitForState(rt, "unauthenticated");
 
-    await expect(rt.ensureAuthenticated()).rejects.toMatchObject({ code: "OAUTH_FAILED" });
+    await expect(rt.ensureAuthenticated()).rejects.toMatchObject({
+      code: "OAUTH_FAILED",
+    });
     expect(startRedirectMock).not.toHaveBeenCalled();
     rt.destroy();
   });
@@ -140,7 +163,8 @@ describe("onFedcmEvent telemetry", () => {
     expect(
       events.some(
         (e) =>
-          (e as { type?: string; mediation?: string; mode?: string }).type === "attempt" &&
+          (e as { type?: string; mediation?: string; mode?: string }).type ===
+            "attempt" &&
           (e as { mediation?: string }).mediation === "optional" &&
           (e as { mode?: string }).mode === "active",
       ),
@@ -148,7 +172,8 @@ describe("onFedcmEvent telemetry", () => {
     expect(
       events.some(
         (e) =>
-          (e as { type?: string; outcome?: { kind?: string } }).type === "outcome" &&
+          (e as { type?: string; outcome?: { kind?: string } }).type ===
+            "outcome" &&
           (e as { outcome?: { kind?: string } }).outcome?.kind === "dismissed",
       ),
     ).toBe(true);
@@ -174,11 +199,17 @@ describe("onFedcmEvent telemetry", () => {
 
   it("fires disconnected event on logout", async () => {
     const disconnect = vi.fn().mockResolvedValue(undefined);
-    (globalThis as unknown as { IdentityCredential: { disconnect: typeof disconnect } }).IdentityCredential =
-      { disconnect };
+    (
+      globalThis as unknown as {
+        IdentityCredential: { disconnect: typeof disconnect };
+      }
+    ).IdentityCredential = { disconnect };
     Object.defineProperty(navigator, "credentials", {
       configurable: true,
-      value: { preventSilentAccess: vi.fn().mockResolvedValue(undefined), get: vi.fn() },
+      value: {
+        preventSilentAccess: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn(),
+      },
     });
     const rt = createAuthRuntime({
       clientId: "c",

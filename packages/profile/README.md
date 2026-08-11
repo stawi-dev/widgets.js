@@ -206,10 +206,10 @@ mount({ installationId: "inst_…", locale: "ar" }); // RTL auto-enabled
 - Max size: `maxAvatarBytes` bytes (default **2 MiB**).
 - Supported types: PNG, JPEG, GIF, WebP. The widget checks magic bytes, not just MIME.
 - Max dimension: 4096 × 4096 px (checked via `createImageBitmap`).
-- Uploaded via multipart to `POST /profile.v1.ProfileService/UpdateAvatar/{profileId}` on your `apiBaseUrl`. The server response must include `data.properties.au_avater_uri` with the canonical URL.
+- Uploaded via multipart (`file` field) with `PUT /profile/profile.v1.ProfileService/UpdateAvatar/{profileId}` on your `apiBaseUrl` (auth-runtime `upload()`). The server response must include `data.properties.au_avater_uri` with the canonical URL.
 - URLs are sanitized on render — only `https:`, `data:image/*`, and `blob:` are allowed.
 
-Gravatar is **opt-in** (`gravatar: true`). When enabled, the widget falls back to Gravatar if the user has no picture URL.
+Gravatar is **opt-in** (`gravatar: true`). When enabled, the widget falls back to Gravatar for any email contact on the profile (verified preferred, otherwise first email). Missing Gravatar accounts get an identicon so the image never 404s.
 
 ---
 

@@ -34,7 +34,9 @@ function post<Req, Res>(
   body: Req,
   mutation = true,
 ): Promise<Res> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (mutation) headers["Idempotency-Key"] = idempotencyKey();
   return rt.fetch<Res>(`${SVC}/${method}`, {
     method: "POST",
@@ -61,9 +63,7 @@ export function getProfile(
  *  - Smaller payload (sub/name/url/contacts) — exactly what the
  *    widget consumes for first render.
  */
-export function getCurrentProfile(
-  rt: AuthRuntime,
-): Promise<UserInfoResponse> {
+export function getCurrentProfile(rt: AuthRuntime): Promise<UserInfoResponse> {
   return rt.fetch<UserInfoResponse>(`${REST}/user/info`, { method: "GET" });
 }
 
@@ -96,7 +96,10 @@ export function checkVerification(
   verificationId: string,
   code: string,
 ): Promise<VerificationResponse> {
-  return post(rt, "CheckVerification", { verification_id: verificationId, code });
+  return post(rt, "CheckVerification", {
+    verification_id: verificationId,
+    code,
+  });
 }
 
 export function removeContact(
