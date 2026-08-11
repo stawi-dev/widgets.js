@@ -1,6 +1,7 @@
 import { useCallback, useContext, useRef } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
+import { useResolvedAvatarUrl } from "../hooks/use-resolved-avatar-url.js";
 import { useT } from "../hooks/use-t.js";
 import { getInitials } from "../utils/get-initials.js";
 import { validateAvatar } from "../utils/validate-avatar.js";
@@ -21,6 +22,7 @@ export function AvatarEditor({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const profile = state.profile;
+  const resolvedPicture = useResolvedAvatarUrl(profile?.picture);
   const gravatarUrl = useGravatarUrl(profile?.email, 112);
 
   const handleClick = useCallback(() => inputRef.current?.click(), []);
@@ -43,7 +45,8 @@ export function AvatarEditor({
 
   if (!profile) return null;
 
-  const avatarSrc = profile.picture || gravatarUrl;
+  // Custom photo (signed files URL or data URI) wins; else Gravatar/identicon.
+  const avatarSrc = resolvedPicture || gravatarUrl;
 
   return (
     <>

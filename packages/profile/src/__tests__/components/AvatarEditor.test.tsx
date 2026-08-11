@@ -5,6 +5,10 @@ import {
   ProfileContext,
   type ProfileContextValue,
 } from "../../context/profile-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 import { HooksContext } from "../../context/hooks-context.js";
 import type { ProfileState } from "../../types.js";
 
@@ -25,6 +29,21 @@ function makeState(
   };
 }
 
+const mockRuntime = {
+  fetch: vi.fn(),
+  upload: vi.fn(),
+  getRoles: vi.fn().mockResolvedValue([]),
+  getClaims: vi.fn().mockResolvedValue({}),
+  ensureAuthenticated: vi.fn(),
+  logout: vi.fn(),
+  onAuthStateChange: vi.fn(() => () => {}),
+  onSecurityEvent: vi.fn(() => () => {}),
+  getState: vi.fn(() => "authenticated" as const),
+  prefetchDiscovery: vi.fn(),
+  destroy: vi.fn(),
+  version: "test",
+};
+
 function renderAvatar(state?: ProfileState, gravatar = true) {
   const ctx: ProfileContextValue = {
     state: state ?? makeState(),
@@ -40,12 +59,21 @@ function renderAvatar(state?: ProfileState, gravatar = true) {
     requestVerification: vi.fn(),
   };
 
+  const auth: AuthContextValue = {
+    authState: "authenticated",
+    runtime: mockRuntime as unknown as AuthContextValue["runtime"],
+    ensureAuthenticated: vi.fn(),
+    logout: vi.fn(),
+  };
+
   return render(
-    <HooksContext.Provider value={{ gravatar }}>
-      <ProfileContext.Provider value={ctx}>
-        <AvatarEditor />
-      </ProfileContext.Provider>
-    </HooksContext.Provider>,
+    <AuthContext.Provider value={auth}>
+      <HooksContext.Provider value={{ gravatar }}>
+        <ProfileContext.Provider value={ctx}>
+          <AvatarEditor />
+        </ProfileContext.Provider>
+      </HooksContext.Provider>
+    </AuthContext.Provider>,
   );
 }
 

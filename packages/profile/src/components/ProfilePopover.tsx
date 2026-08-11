@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
+import { useResolvedAvatarUrl } from "../hooks/use-resolved-avatar-url.js";
 import { useT } from "../hooks/use-t.js";
 import { getInitials } from "../utils/get-initials.js";
 import { ProfileCard } from "./ProfileCard.js";
@@ -21,6 +22,7 @@ export function ProfilePopover({
   const t = useT();
 
   const profile = state.profile;
+  const resolvedPicture = useResolvedAvatarUrl(profile?.picture);
   const gravatarUrl = useGravatarUrl(profile?.email, 80);
 
   const toggle = useCallback(() => setOpen((o) => !o), []);
@@ -60,7 +62,7 @@ export function ProfilePopover({
     return () => document.removeEventListener("keydown", handler);
   }, [open, close]);
 
-  const avatarSrc = profile?.picture || gravatarUrl;
+  const avatarSrc = resolvedPicture || gravatarUrl;
 
   return (
     <div

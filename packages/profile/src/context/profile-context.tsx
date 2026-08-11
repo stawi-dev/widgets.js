@@ -18,6 +18,10 @@ import {
   removeContact as rpcRemove,
 } from "../services/profile-service.js";
 import {
+  stableAvatarProperty,
+  uploadMedia,
+} from "../services/files-service.js";
+import {
   profileObjectToProfileData,
   uiUpdatesToProtoProperties,
   userInfoToProfileData,
@@ -156,14 +160,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     async (file: File) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-      // /profile prefix routes through the gateway URLRewrite to the
-      // service-profile backend mux; see profile-service.ts for the
-      // full convention writeup.
-      const resp = await runtime.upload<{
-        data: { properties: { au_avater_uri?: string } };
-      }>(`/profile/profile.v1.ProfileService/UpdateAvatar/${profileId}`, file);
-      const url = resp.data?.properties?.au_avater_uri;
-      if (url) dispatch({ type: "UPDATED_PROFILE", updates: { picture: url } });
+      // 1) Store bytes in files service
+      // 2) Persist durable mxc:// ref on profile via Connect Update
+      // Display signs the mxc ref via useResolvedAvatarUrl (private media).
+      const uploaded = await uploadMedia(runtime, file);
+      const durable = stableAvatarProperty(uploaded);
+      await rpcUpdate(runtime, profileId, { au_avater_uri: durable });
+      dispatch({ type: "UPDATED_PROFILE", updates: { picture: durable } });
     },
     [runtime, state.profile?.id],
   );
