@@ -10,7 +10,13 @@ const defaults = {
   strokeLinejoin: "round" as const,
 };
 
-function Svg({ size = 18, children }: { size?: number; children: React.ReactNode }) {
+function Svg({
+  size = 18,
+  children,
+}: {
+  size?: number;
+  children: React.ReactNode;
+}) {
   return (
     <svg
       width={size}

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { AdminPanelButton } from "../../components/AdminPanelButton.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 
 function createWrapper(roles: string[]) {
   const runtime = {
@@ -26,7 +29,9 @@ function createWrapper(roles: string[]) {
     logout: vi.fn(),
   };
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    );
   };
 }
 

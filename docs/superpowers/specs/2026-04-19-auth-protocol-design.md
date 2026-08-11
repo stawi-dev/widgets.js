@@ -33,16 +33,16 @@ The protocol must:
 
 A conforming client takes these inputs:
 
-| Field | Required | Default | Notes |
-|---|---|---|---|
-| `clientId` | yes | — | OAuth client ID. |
-| `idpBaseUrl` | no | `https://oauth2.stawi.org` | Root for OIDC discovery (`${idpBaseUrl}/.well-known/openid-configuration`). |
-| `apiBaseUrl` | no | `https://api.stawi.org` | Root for authenticated API calls. |
-| `redirectUri` | no | platform-default | Must resolve to a URI the embedder/IdP both trust. |
-| `scopes` | no | `["openid", "profile", "email", "offline_access"]` | `offline_access` MUST be requested to receive a refresh token. |
-| `installationId` | no | — | Multi-tenant hint; sent as `installation_id` custom param on `/authorize`. |
-| `fedcmConfigUrl` | no | `/.well-known/web-identity` | Browser only. |
-| `skipFedCM` | no | `false` | Browser only. |
+| Field            | Required | Default                                            | Notes                                                                       |
+| ---------------- | -------- | -------------------------------------------------- | --------------------------------------------------------------------------- |
+| `clientId`       | yes      | —                                                  | OAuth client ID.                                                            |
+| `idpBaseUrl`     | no       | `https://oauth2.stawi.org`                         | Root for OIDC discovery (`${idpBaseUrl}/.well-known/openid-configuration`). |
+| `apiBaseUrl`     | no       | `https://api.stawi.org`                            | Root for authenticated API calls.                                           |
+| `redirectUri`    | no       | platform-default                                   | Must resolve to a URI the embedder/IdP both trust.                          |
+| `scopes`         | no       | `["openid", "profile", "email", "offline_access"]` | `offline_access` MUST be requested to receive a refresh token.              |
+| `installationId` | no       | —                                                  | Multi-tenant hint; sent as `installation_id` custom param on `/authorize`.  |
+| `fedcmConfigUrl` | no       | `/.well-known/web-identity`                        | Browser only.                                                               |
+| `skipFedCM`      | no       | `false`                                            | Browser only.                                                               |
 
 Client MUST normalize `idpBaseUrl` and `apiBaseUrl` by stripping a trailing `/`.
 
@@ -66,10 +66,10 @@ Client SHOULD feature-detect DPoP from `dpop_signing_alg_values_supported` on th
 
 On first sign-in for a given `(clientId, idpBaseUrl)` namespace the client generates two keys:
 
-| Key | Algorithm | Extractable | Usages | Lifetime |
-|---|---|---|---|---|
-| DPoP signing key | ECDSA P-256 | **false** | `["sign"]` | Until logout, security wipe, or storage loss. |
-| Wrap key | AES-GCM 256 | **false** | `["encrypt", "decrypt"]` | Same as DPoP key. |
+| Key              | Algorithm   | Extractable | Usages                   | Lifetime                                      |
+| ---------------- | ----------- | ----------- | ------------------------ | --------------------------------------------- |
+| DPoP signing key | ECDSA P-256 | **false**   | `["sign"]`               | Until logout, security wipe, or storage loss. |
+| Wrap key         | AES-GCM 256 | **false**   | `["encrypt", "decrypt"]` | Same as DPoP key.                             |
 
 Both keys MUST be non-extractable by the platform's crypto API (on browsers: `crypto.subtle.generateKey(..., false, ...)`; on iOS: Secure Enclave; on Android: StrongBox/TEE). A conforming implementation that cannot meet this requirement MUST refuse to start and raise `CRYPTO_UNSUPPORTED`.
 
@@ -105,6 +105,7 @@ If silent fails, client MAY try `mediation: "optional"` as a second step.
 - **DPoP mode:** include header `DPoP: <jwt>` where the JWT has `typ=dpop+jwt`, `alg=ES256`, `jwk=<public key of the DPoP key>`, and claims `htm=POST`, `htu=<token_endpoint>`, `iat=<now>`, `jti=<uuid>`.
 
 On `200 OK`, parse:
+
 - `access_token` (required)
 - `refresh_token` (required — MUST have been granted via `offline_access` scope)
 - `expires_in` (required; default 300 if omitted)
@@ -226,22 +227,22 @@ Each event includes `at: epoch_ms`. No PII.
 
 ## 17. Failure-mode matrix (normative)
 
-| Condition | Client handling | User impact |
-|---|---|---|
-| Durable store missing any of {wrapKey, dpopKey, wrappedRT} | Wipe partial entries; `state=unauthenticated`. | Sign-in prompt. |
-| Decrypt throws | Wipe; `SecurityEvent("storage_corruption")`; `state=unauthenticated`. | Sign-in prompt. |
-| Quota exhausted on save | Keep RT in memory for this session only. Warn via `onError`. | Transparent this session; re-auth next session. |
-| Crypto unsupported (non-extractable key gen fails) | Refuse to start; raise `CRYPTO_UNSUPPORTED`. | Error state; embedder decides. |
-| IdP rotates JWKS | API returns 401; client refreshes once and retries. | Transparent. |
-| IdP rotates our refresh token (normal rotation) | Persist new RT atomically under lock. | Transparent. |
-| Reuse detection on refresh | Wipe; `SecurityEvent("refresh_reuse_detected")`; `state=unauthenticated`. | Sign-in prompt. |
-| Admin revoke | Next refresh → `invalid_grant`; wipe + `state=unauthenticated`. | Sign-in prompt. |
-| IdP requires DPoP nonce | Honor `DPoP-Nonce`; retry once. | Transparent. |
-| Two tabs refresh simultaneously | Cross-process lock; one performs the refresh; others read result from store. | Transparent. |
-| Tab closed mid-refresh | Next session cold-starts with last-persisted RT. If consumed → re-auth. | Worst case: one re-login. |
-| Device clock skew | Correct via `Date` header; persist offset. | Transparent after one retry. |
-| Offline | API calls fail with `OFFLINE`; no logout; tokens preserved. | Retry-when-online UX. |
-| Config conflict (two mounts, different IDs) | Keyed by namespace; no cross-contamination. | Both work. |
+| Condition                                                  | Client handling                                                              | User impact                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------- |
+| Durable store missing any of {wrapKey, dpopKey, wrappedRT} | Wipe partial entries; `state=unauthenticated`.                               | Sign-in prompt.                                 |
+| Decrypt throws                                             | Wipe; `SecurityEvent("storage_corruption")`; `state=unauthenticated`.        | Sign-in prompt.                                 |
+| Quota exhausted on save                                    | Keep RT in memory for this session only. Warn via `onError`.                 | Transparent this session; re-auth next session. |
+| Crypto unsupported (non-extractable key gen fails)         | Refuse to start; raise `CRYPTO_UNSUPPORTED`.                                 | Error state; embedder decides.                  |
+| IdP rotates JWKS                                           | API returns 401; client refreshes once and retries.                          | Transparent.                                    |
+| IdP rotates our refresh token (normal rotation)            | Persist new RT atomically under lock.                                        | Transparent.                                    |
+| Reuse detection on refresh                                 | Wipe; `SecurityEvent("refresh_reuse_detected")`; `state=unauthenticated`.    | Sign-in prompt.                                 |
+| Admin revoke                                               | Next refresh → `invalid_grant`; wipe + `state=unauthenticated`.              | Sign-in prompt.                                 |
+| IdP requires DPoP nonce                                    | Honor `DPoP-Nonce`; retry once.                                              | Transparent.                                    |
+| Two tabs refresh simultaneously                            | Cross-process lock; one performs the refresh; others read result from store. | Transparent.                                    |
+| Tab closed mid-refresh                                     | Next session cold-starts with last-persisted RT. If consumed → re-auth.      | Worst case: one re-login.                       |
+| Device clock skew                                          | Correct via `Date` header; persist offset.                                   | Transparent after one retry.                    |
+| Offline                                                    | API calls fail with `OFFLINE`; no logout; tokens preserved.                  | Retry-when-online UX.                           |
+| Config conflict (two mounts, different IDs)                | Keyed by namespace; no cross-contamination.                                  | Both work.                                      |
 
 ## 18. Open questions / future work
 

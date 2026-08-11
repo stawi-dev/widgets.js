@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  attemptFedCM,
-  _resetProbeCache,
-} from "../../shared/fedcm.js";
+import { attemptFedCM, _resetProbeCache } from "../../shared/fedcm.js";
 import type { ResolvedConfig } from "../../shared/types.js";
 
 const baseCfg: ResolvedConfig = {
@@ -21,12 +18,18 @@ const baseCfg: ResolvedConfig = {
 const originalFetch = globalThis.fetch;
 
 function stubProbeOk(loginUrl?: string) {
-  globalThis.fetch = vi.fn().mockResolvedValue(
-    new Response(
-      JSON.stringify(loginUrl ? { login_url: loginUrl } : { accounts_endpoint: "/fedcm/accounts" }),
-      { status: 200, headers: { "content-type": "application/json" } },
-    ),
-  ) as unknown as typeof fetch;
+  globalThis.fetch = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          loginUrl
+            ? { login_url: loginUrl }
+            : { accounts_endpoint: "/fedcm/accounts" },
+        ),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    ) as unknown as typeof fetch;
 }
 
 describe("attemptFedCM integration via FedCM polyfill", () => {
@@ -54,7 +57,11 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
       nonce: "test-nonce",
     });
 
-    expect(outcome).toEqual({ kind: "token", token: "id-token", autoSelected: false });
+    expect(outcome).toEqual({
+      kind: "token",
+      token: "id-token",
+      autoSelected: false,
+    });
     expect(globalThis.__TEST_FEDCM.calls.get).toHaveLength(1);
   });
 
@@ -66,7 +73,11 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
     });
 
     const outcome = await attemptFedCM(baseCfg, { mediation: "silent" });
-    expect(outcome).toEqual({ kind: "token", token: "id-token", autoSelected: true });
+    expect(outcome).toEqual({
+      kind: "token",
+      token: "id-token",
+      autoSelected: true,
+    });
   });
 
   it("maps NetworkError → no-session with loginUrl from probe", async () => {
@@ -77,7 +88,10 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
     };
 
     const outcome = await attemptFedCM(baseCfg, { mediation: "optional" });
-    expect(outcome).toEqual({ kind: "no-session", loginUrl: "https://i/login" });
+    expect(outcome).toEqual({
+      kind: "no-session",
+      loginUrl: "https://i/login",
+    });
   });
 
   it("maps NotAllowedError → dismissed for mediation:optional", async () => {
@@ -112,12 +126,14 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
 
   it("maps IdentityCredentialError with code/url → error outcome", async () => {
     globalThis.__TEST_FEDCM.handleGet = () => {
-      const Ctor = (globalThis as unknown as {
-        IdentityCredentialError: new (
-          msg: string,
-          init: { code?: string; url?: string },
-        ) => Error & { code?: string; url?: string };
-      }).IdentityCredentialError;
+      const Ctor = (
+        globalThis as unknown as {
+          IdentityCredentialError: new (
+            msg: string,
+            init: { code?: string; url?: string },
+          ) => Error & { code?: string; url?: string };
+        }
+      ).IdentityCredentialError;
       throw new Ctor("server rejected", {
         code: "invalid_request",
         url: "https://i/err",
@@ -133,13 +149,19 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
   });
 
   it("passes mode:active when opts.mode is active", async () => {
-    globalThis.__TEST_FEDCM.handleGet = () => ({ type: "identity", token: "t" });
+    globalThis.__TEST_FEDCM.handleGet = () => ({
+      type: "identity",
+      token: "t",
+    });
     await attemptFedCM(baseCfg, { mediation: "optional", mode: "active" });
     expect(globalThis.__TEST_FEDCM.calls.get[0].mode).toBe("active");
   });
 
   it("passes mode:passive when opts.mode is passive", async () => {
-    globalThis.__TEST_FEDCM.handleGet = () => ({ type: "identity", token: "t" });
+    globalThis.__TEST_FEDCM.handleGet = () => ({
+      type: "identity",
+      token: "t",
+    });
     await attemptFedCM(baseCfg, { mediation: "silent", mode: "passive" });
     expect(globalThis.__TEST_FEDCM.calls.get[0].mode).toBe("passive");
   });
@@ -155,7 +177,10 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
       },
     };
 
-    globalThis.__TEST_FEDCM.handleGet = () => ({ type: "identity", token: "t" });
+    globalThis.__TEST_FEDCM.handleGet = () => ({
+      type: "identity",
+      token: "t",
+    });
     await attemptFedCM(cfg, { mediation: "optional", nonce: "n" });
 
     const provider = globalThis.__TEST_FEDCM.calls.get[0].providers?.[0] as {
@@ -179,7 +204,10 @@ describe("attemptFedCM integration via FedCM polyfill", () => {
   });
 
   it("forwards the abort signal onto navigator.credentials.get", async () => {
-    globalThis.__TEST_FEDCM.handleGet = () => ({ type: "identity", token: "t" });
+    globalThis.__TEST_FEDCM.handleGet = () => ({
+      type: "identity",
+      token: "t",
+    });
     const ac = new AbortController();
     await attemptFedCM(baseCfg, { mediation: "optional", signal: ac.signal });
     expect(globalThis.__TEST_FEDCM.calls.get[0].signal).toBe(ac.signal);

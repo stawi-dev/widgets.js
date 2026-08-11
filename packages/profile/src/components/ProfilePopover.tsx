@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProfile } from "../hooks/use-profile.js";
 import { useGravatarUrl } from "../hooks/use-gravatar.js";
+import { useResolvedAvatarUrl } from "../hooks/use-resolved-avatar-url.js";
 import { useT } from "../hooks/use-t.js";
 import { getInitials } from "../utils/get-initials.js";
 import { ProfileCard } from "./ProfileCard.js";
@@ -10,7 +11,10 @@ interface ProfilePopoverProps {
   onLogout?: () => void;
 }
 
-export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps) {
+export function ProfilePopover({
+  adminPanelUrl,
+  onLogout,
+}: ProfilePopoverProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -18,6 +22,7 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
   const t = useT();
 
   const profile = state.profile;
+  const resolvedPicture = useResolvedAvatarUrl(profile?.picture);
   const gravatarUrl = useGravatarUrl(profile?.email, 80);
 
   const toggle = useCallback(() => setOpen((o) => !o), []);
@@ -57,10 +62,13 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
     return () => document.removeEventListener("keydown", handler);
   }, [open, close]);
 
-  const avatarSrc = profile?.picture || gravatarUrl;
+  const avatarSrc = resolvedPicture || gravatarUrl;
 
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
+    <div
+      ref={containerRef}
+      style={{ position: "relative", display: "inline-block" }}
+    >
       <button
         ref={triggerRef}
         className="aiw-trigger"
@@ -69,7 +77,13 @@ export function ProfilePopover({ adminPanelUrl, onLogout }: ProfilePopoverProps)
         aria-expanded={open}
       >
         {avatarSrc ? (
-          <img src={avatarSrc} alt={profile?.name ?? t("profile.fallbackName")} />
+          <img
+            src={avatarSrc}
+            alt={profile?.name ?? t("profile.fallbackName")}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
         ) : (
           <span className="aiw-trigger-initials">
             {profile ? getInitials(profile.name) : "?"}

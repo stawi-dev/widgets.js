@@ -1,9 +1,5 @@
 export type AuthState =
-  | "initializing"
-  | "authenticated"
-  | "unauthenticated"
-  | "refreshing"
-  | "error";
+  "initializing" | "authenticated" | "unauthenticated" | "refreshing" | "error";
 
 export type AuthStateCallback = (state: AuthState) => void;
 

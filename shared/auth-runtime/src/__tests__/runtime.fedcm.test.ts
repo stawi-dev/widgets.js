@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createAuthRuntime } from "../runtime.js";
-import { _setDiscoveryForTest, clearDiscoveryCache } from "../shared/discovery.js";
+import {
+  _setDiscoveryForTest,
+  clearDiscoveryCache,
+} from "../shared/discovery.js";
 import { _resetProbeCache } from "../shared/fedcm.js";
 
 // -----------------------------------------------------------------------------
@@ -41,31 +44,38 @@ const originalFetch = globalThis.fetch;
 function mockFetchForFedcm(loginUrl = "https://i/login") {
   // Any fetch call during these tests either (a) probes the FedCM config or
   // (b) does a token exchange. Route them with a URL matcher.
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    if (url.endsWith("/fedcm/config.json")) {
-      return new Response(JSON.stringify({ login_url: loginUrl }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    }
-    if (url.endsWith("/token")) {
-      // Successful FedCM id_token exchange response.
-      return new Response(
-        JSON.stringify({
-          access_token: "at",
-          refresh_token: "rt",
-          expires_in: 300,
-          token_type: "Bearer",
-          id_token: "id",
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    }
-    // Default: unhandled → 404.
-    void init;
-    return new Response("not-found", { status: 404 });
-  });
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      if (url.endsWith("/fedcm/config.json")) {
+        return new Response(JSON.stringify({ login_url: loginUrl }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.endsWith("/token")) {
+        // Successful FedCM id_token exchange response.
+        return new Response(
+          JSON.stringify({
+            access_token: "at",
+            refresh_token: "rt",
+            expires_in: 300,
+            token_type: "Bearer",
+            id_token: "id",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      // Default: unhandled → 404.
+      void init;
+      return new Response("not-found", { status: 404 });
+    },
+  );
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
@@ -125,17 +135,16 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
 
     // Any runtime.getRandomValues-derived nonce won't match "wrong".
     // handleGet returns a token whose nonce claim is "wrong".
-    globalThis.__TEST_FEDCM.handleGet = () =>
-      ({
-        type: "identity",
-        token: buildIdToken({
-          iss: "https://i",
-          aud: "c",
-          sub: "u1",
-          nonce: "wrong",
-        }),
-        isAutoSelected: false,
-      });
+    globalThis.__TEST_FEDCM.handleGet = () => ({
+      type: "identity",
+      token: buildIdToken({
+        iss: "https://i",
+        aud: "c",
+        sub: "u1",
+        nonce: "wrong",
+      }),
+      isAutoSelected: false,
+    });
 
     const rt = createAuthRuntime({
       clientId: "c",
@@ -151,13 +160,16 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
     // discards it via .catch(() => {}). Therefore state remains
     // unauthenticated AND no token-exchange fetch to /token fires.
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
-    const tokenExchangeCalls = fetchMock.mock.calls.filter(
-      (call) => {
-        const arg = call[0] as string | URL | Request;
-        const s = typeof arg === "string" ? arg : arg instanceof URL ? arg.toString() : arg.url;
-        return s.endsWith("/token");
-      },
-    );
+    const tokenExchangeCalls = fetchMock.mock.calls.filter((call) => {
+      const arg = call[0] as string | URL | Request;
+      const s =
+        typeof arg === "string"
+          ? arg
+          : arg instanceof URL
+            ? arg.toString()
+            : arg.url;
+      return s.endsWith("/token");
+    });
     expect(tokenExchangeCalls.length).toBe(0);
     expect(rt.getState()).toBe("unauthenticated");
     rt.destroy();
@@ -220,7 +232,11 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
     expect(outcomeIdx).toBeGreaterThan(attemptIdx);
 
     const probeEvent = events[probeIdx];
-    expect(probeEvent).toMatchObject({ type: "probe", available: true, loginUrl: "https://i/login" });
+    expect(probeEvent).toMatchObject({
+      type: "probe",
+      available: true,
+      loginUrl: "https://i/login",
+    });
 
     const attemptEvent = events[attemptIdx];
     expect(attemptEvent).toMatchObject({
@@ -259,7 +275,8 @@ describe("runtime FedCM integration (polyfill-driven)", () => {
         throw e;
       }
       // mediation: "required"
-      nonceFromRequired = (req.providers as Array<{ nonce?: string }>)[0]?.nonce;
+      nonceFromRequired = (req.providers as Array<{ nonce?: string }>)[0]
+        ?.nonce;
       return {
         type: "identity",
         token: buildIdToken({

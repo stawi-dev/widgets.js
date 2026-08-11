@@ -20,7 +20,13 @@ function createWrapper(
         name: "Test",
         email: "test@example.com",
         contacts: [
-          { id: "c1", type: "email", value: "alice@example.com", verified: false, primary: false },
+          {
+            id: "c1",
+            type: "email",
+            value: "alice@example.com",
+            verified: false,
+            primary: false,
+          },
         ],
       },
       pendingVerification: pending,
@@ -41,7 +47,9 @@ function createWrapper(
   return {
     value,
     Wrapper: ({ children }: { children: ReactNode }) => (
-      <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+      <ProfileContext.Provider value={value}>
+        {children}
+      </ProfileContext.Provider>
     ),
   };
 }
@@ -56,7 +64,10 @@ describe("VerifyBanner", () => {
   });
 
   it("renders contact value from state when pending is set", () => {
-    const { Wrapper } = createWrapper({ contactId: "c1", verificationId: "v1" });
+    const { Wrapper } = createWrapper({
+      contactId: "c1",
+      verificationId: "v1",
+    });
     render(<VerifyBanner onEnterCode={vi.fn()} />, { wrapper: Wrapper });
     expect(screen.getByText(/Verify/)).toBeTruthy();
     expect(screen.getByText(/alice@example\.com/)).toBeTruthy();
@@ -64,7 +75,10 @@ describe("VerifyBanner", () => {
 
   it("fires onEnterCode when 'Enter code' button clicked", () => {
     const onEnterCode = vi.fn();
-    const { Wrapper } = createWrapper({ contactId: "c1", verificationId: "v1" });
+    const { Wrapper } = createWrapper({
+      contactId: "c1",
+      verificationId: "v1",
+    });
     render(<VerifyBanner onEnterCode={onEnterCode} />, { wrapper: Wrapper });
 
     fireEvent.click(screen.getByText("Enter code"));

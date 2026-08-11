@@ -30,18 +30,18 @@ The widget fetches `${idpBaseUrl}/.well-known/openid-configuration` on first use
 
 Required fields:
 
-| Field | Required | Notes |
-|---|---|---|
-| `issuer` | yes | MUST equal `idpBaseUrl` exactly (no trailing slash). Widget verifies this when validating ID tokens. |
-| `authorization_endpoint` | yes | Must accept `response_type=code`, PKCE `S256`, and the `offline_access` scope. |
-| `token_endpoint` | yes | Must support `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:token-exchange` grants. |
-| `end_session_endpoint` | yes | RP-Initiated Logout 1.0. Must accept `id_token_hint`, `client_id`, and `post_logout_redirect_uri`. |
-| `revocation_endpoint` | yes | RFC 7009. Must accept `token` + `token_type_hint=refresh_token`. |
-| `jwks_uri` | yes | Standard OIDC. Widget does not currently verify ID token signatures client-side, but the field is required for downstream services. |
-| `scopes_supported` | yes | Must include `openid`, `profile`, `email`, and `offline_access`. |
-| `grant_types_supported` | yes | Must include `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:token-exchange`. |
-| `code_challenge_methods_supported` | yes | Must include `S256`. |
-| `dpop_signing_alg_values_supported` | recommended | Include `ES256` to opt this IdP into DPoP mode. If absent, the widget uses plain bearer tokens. |
+| Field                               | Required    | Notes                                                                                                                               |
+| ----------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `issuer`                            | yes         | MUST equal `idpBaseUrl` exactly (no trailing slash). Widget verifies this when validating ID tokens.                                |
+| `authorization_endpoint`            | yes         | Must accept `response_type=code`, PKCE `S256`, and the `offline_access` scope.                                                      |
+| `token_endpoint`                    | yes         | Must support `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:token-exchange` grants.                   |
+| `end_session_endpoint`              | yes         | RP-Initiated Logout 1.0. Must accept `id_token_hint`, `client_id`, and `post_logout_redirect_uri`.                                  |
+| `revocation_endpoint`               | yes         | RFC 7009. Must accept `token` + `token_type_hint=refresh_token`.                                                                    |
+| `jwks_uri`                          | yes         | Standard OIDC. Widget does not currently verify ID token signatures client-side, but the field is required for downstream services. |
+| `scopes_supported`                  | yes         | Must include `openid`, `profile`, `email`, and `offline_access`.                                                                    |
+| `grant_types_supported`             | yes         | Must include `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:token-exchange`.                          |
+| `code_challenge_methods_supported`  | yes         | Must include `S256`.                                                                                                                |
+| `dpop_signing_alg_values_supported` | recommended | Include `ES256` to opt this IdP into DPoP mode. If absent, the widget uses plain bearer tokens.                                     |
 
 Example (fields abbreviated):
 
@@ -165,15 +165,15 @@ Response `200 application/json`:
 
 ID-token claim requirements (all verified by the widget):
 
-| Claim | Required | Notes |
-|---|---|---|
-| `iss` | yes | MUST equal `idpBaseUrl`. Widget rejects with `FEDCM_ISS_MISMATCH` otherwise. |
-| `aud` | yes | MUST equal the `client_id` the browser sent. |
-| `exp` | yes | MUST be short — SHOULD be ≤ 5 minutes. The ID token is only used as the `subject_token` of a follow-up token-exchange request; long-lived IDs serve no purpose and widen the replay window. |
-| `iat` | yes | Standard OIDC. |
-| `sub` | yes | Stable subject identifier. |
-| `nonce` | yes | Exact echo of the form-field `nonce`. |
-| `email`, `name`, `picture`, `email_verified` | optional | Populate the widget's prompt-free account view when present. |
+| Claim                                        | Required | Notes                                                                                                                                                                                       |
+| -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `iss`                                        | yes      | MUST equal `idpBaseUrl`. Widget rejects with `FEDCM_ISS_MISMATCH` otherwise.                                                                                                                |
+| `aud`                                        | yes      | MUST equal the `client_id` the browser sent.                                                                                                                                                |
+| `exp`                                        | yes      | MUST be short — SHOULD be ≤ 5 minutes. The ID token is only used as the `subject_token` of a follow-up token-exchange request; long-lived IDs serve no purpose and widen the replay window. |
+| `iat`                                        | yes      | Standard OIDC.                                                                                                                                                                              |
+| `sub`                                        | yes      | Stable subject identifier.                                                                                                                                                                  |
+| `nonce`                                      | yes      | Exact echo of the form-field `nonce`.                                                                                                                                                       |
+| `email`, `name`, `picture`, `email_verified` | optional | Populate the widget's prompt-free account view when present.                                                                                                                                |
 
 Error responses follow the FedCM spec — `{ "error": { "code": "access_denied", "url": "https://example.com/error-details" } }` — and surface to the widget as `FedCMOutcome.kind === "error"` with `code` and `url` preserved for telemetry.
 
@@ -207,7 +207,7 @@ window.opener?.postMessage(
   // target origin = the widget's origin; loosely, the `event.origin` you saw
   // from the opener's initial postMessage, or `"*"` is also acceptable because
   // the widget verifies the sender origin.
-  event.origin
+  event.origin,
 );
 window.close();
 ```
@@ -283,6 +283,7 @@ This is non-negotiable for the widget's threat model. The IdP MUST:
    ```
 
    The `error_description` text is advisory — the widget only checks `error === "invalid_grant"` — but including it helps debugging.
+
 3. **Invalidate the entire token family** on reuse. Any other refresh tokens derived from the same original grant MUST also be rejected. This is the mechanism that turns a leaked refresh token into a single-use artifact.
 
 On detecting `invalid_grant`, the widget wipes local crypto material, emits `SecurityEvent("refresh_reuse_detected")` to the embedder, broadcasts `logged_out_elsewhere` to sibling tabs, and transitions to `unauthenticated`.
@@ -291,13 +292,13 @@ On detecting `invalid_grant`, the widget wipes local crypto material, emits `Sec
 
 The widget maps FedCM failure modes as follows (see `shared/auth-runtime/src/shared/fedcm.ts`):
 
-| Browser-reported condition | Widget outcome | Action |
-|---|---|---|
-| `NetworkError` on `navigator.credentials.get` | `{ kind: "no-session", loginUrl }` | Open `loginUrl` popup, wait for `stawi-login-complete`, retry FedCM with `mediation: "required"`. |
-| `NotAllowedError` under `silent` mediation | `{ kind: "not-allowed" }` | Skip to OAuth-popup fallback. |
-| `NotAllowedError` under `optional`/`required` mediation | `{ kind: "dismissed" }` | User-cancelled; do not retry automatically. |
-| `AbortError` | `{ kind: "aborted" }` | Runtime was destroyed mid-attempt. |
-| `IdentityCredentialError` | `{ kind: "error", code, url }` | Expose to embedder via `onFedcmEvent`; fall back to OAuth popup. |
+| Browser-reported condition                              | Widget outcome                     | Action                                                                                            |
+| ------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `NetworkError` on `navigator.credentials.get`           | `{ kind: "no-session", loginUrl }` | Open `loginUrl` popup, wait for `stawi-login-complete`, retry FedCM with `mediation: "required"`. |
+| `NotAllowedError` under `silent` mediation              | `{ kind: "not-allowed" }`          | Skip to OAuth-popup fallback.                                                                     |
+| `NotAllowedError` under `optional`/`required` mediation | `{ kind: "dismissed" }`            | User-cancelled; do not retry automatically.                                                       |
+| `AbortError`                                            | `{ kind: "aborted" }`              | Runtime was destroyed mid-attempt.                                                                |
+| `IdentityCredentialError`                               | `{ kind: "error", code, url }`     | Expose to embedder via `onFedcmEvent`; fall back to OAuth popup.                                  |
 
 For the `no-session` path to work, `login_url` MUST be present in the FedCM config document **and** the IdP MUST actually report no session when there is none (typically by returning `401` from `accounts_endpoint` when the IdP cookie is missing).
 
@@ -365,7 +366,7 @@ oauth2:
       max_ttl: 5m
 ttl:
   access_token: 5m
-  refresh_token: 720h   # policy
+  refresh_token: 720h # policy
   id_token: 5m
   auth_code: 1m
 webfinger:

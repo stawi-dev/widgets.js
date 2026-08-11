@@ -12,10 +12,7 @@ const tables: Record<string, Table> = {
   ar: ar as Table,
 };
 
-export type Translator = (
-  key: string,
-  vars?: Record<string, string>,
-) => string;
+export type Translator = (key: string, vars?: Record<string, string>) => string;
 
 /**
  * Returns a translator function for the given BCP-47 locale.

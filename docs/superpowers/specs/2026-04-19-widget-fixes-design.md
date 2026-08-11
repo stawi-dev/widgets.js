@@ -4,6 +4,7 @@ Status: draft
 Date: 2026-04-19
 Applies to: `packages/profile` (v0.2.0 → v1.0.0)
 Companion specs:
+
 - `2026-04-19-auth-protocol-design.md` (protocol)
 - `2026-04-19-auth-runtime-browser-design.md` (runtime)
 
@@ -17,20 +18,20 @@ All audit findings not covered by the auth-runtime redesign: theming, avatar upl
 
 New fields (all optional, defaults chosen to be safe):
 
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `locale` | `string` | `"en"` | BCP-47; widget resolves to `locale → locale.split("-")[0] → "en"`. |
-| `gravatar` | `boolean` | `false` | Opt-in Gravatar fallback. |
-| `externalFonts` | `boolean` | `false` | Opt-in Google Fonts. Default ships inlined woff2 subsets. |
-| `maxAvatarBytes` | `number` | `2 * 1024 * 1024` | Client-side upload cap. |
-| `onAuthStateChange` | `(state: AuthState) => void` | — | RUM hook. |
-| `onError` | `(err: WidgetError) => void` | — | RUM hook. |
-| `onSecurityEvent` | `(event: SecurityEvent) => void` | — | For alerting on reuse-detection etc. |
-| `onMetric` | `(name, durationMs, tags) => void` | — | Timing hook. |
-| `logger` | `(level, msg, meta) => void` | — | Dev logging. |
-| `timeouts` | `{ discovery?, token?, api?, upload? }` | see protocol spec | Per-phase timeout overrides. |
-| `tokens` | `ProfileWidgetTokens & { dark?; light? }` | — | Visible-styling overrides, see §4.2. |
-| `css` | `string` | — | Raw CSS appended inside Shadow DOM; last-resort escape hatch. |
+| Field               | Type                                      | Default           | Purpose                                                            |
+| ------------------- | ----------------------------------------- | ----------------- | ------------------------------------------------------------------ |
+| `locale`            | `string`                                  | `"en"`            | BCP-47; widget resolves to `locale → locale.split("-")[0] → "en"`. |
+| `gravatar`          | `boolean`                                 | `false`           | Opt-in Gravatar fallback.                                          |
+| `externalFonts`     | `boolean`                                 | `false`           | Opt-in Google Fonts. Default ships inlined woff2 subsets.          |
+| `maxAvatarBytes`    | `number`                                  | `2 * 1024 * 1024` | Client-side upload cap.                                            |
+| `onAuthStateChange` | `(state: AuthState) => void`              | —                 | RUM hook.                                                          |
+| `onError`           | `(err: WidgetError) => void`              | —                 | RUM hook.                                                          |
+| `onSecurityEvent`   | `(event: SecurityEvent) => void`          | —                 | For alerting on reuse-detection etc.                               |
+| `onMetric`          | `(name, durationMs, tags) => void`        | —                 | Timing hook.                                                       |
+| `logger`            | `(level, msg, meta) => void`              | —                 | Dev logging.                                                       |
+| `timeouts`          | `{ discovery?, token?, api?, upload? }`   | see protocol spec | Per-phase timeout overrides.                                       |
+| `tokens`            | `ProfileWidgetTokens & { dark?; light? }` | —                 | Visible-styling overrides, see §4.2.                               |
+| `css`               | `string`                                  | —                 | Raw CSS appended inside Shadow DOM; last-resort escape hatch.      |
 
 Existing fields unchanged. v0.2.0 callers keep working.
 
@@ -58,22 +59,42 @@ Types exported from `@stawi/auth-runtime/shared/types`:
 ```ts
 type WidgetErrorCode =
   | "INVALID_CONFIG"
-  | "DISCOVERY_FAILED" | "NETWORK_TIMEOUT" | "NETWORK_ERROR" | "OFFLINE"
-  | "OAUTH_POPUP_BLOCKED" | "OAUTH_POPUP_CLOSED" | "OAUTH_POPUP_TIMEOUT"
-  | "OAUTH_STATE_MISMATCH" | "OAUTH_FAILED"
-  | "FEDCM_ISS_MISMATCH" | "FEDCM_DISMISSED"
-  | "TOKEN_EXCHANGE_FAILED" | "TOKEN_REFRESH_FAILED" | "TOKEN_EXPIRED"
-  | "DPOP_NONCE_REQUIRED" | "DPOP_INVALID_PROOF"
-  | "STORAGE_CORRUPTION" | "STORAGE_QUOTA_EXCEEDED" | "CRYPTO_UNSUPPORTED" | "WORKER_UNAVAILABLE"
-  | "LOGGED_OUT_ELSEWHERE" | "SECURITY_WIPE"
-  | "API_UNAUTHORIZED" | "API_FORBIDDEN" | "API_NOT_FOUND" | "API_VALIDATION" | "API_SERVER_ERROR"
-  | "AVATAR_TOO_LARGE" | "AVATAR_TYPE_UNSUPPORTED" | "AVATAR_DIMENSIONS_EXCEEDED";
+  | "DISCOVERY_FAILED"
+  | "NETWORK_TIMEOUT"
+  | "NETWORK_ERROR"
+  | "OFFLINE"
+  | "OAUTH_POPUP_BLOCKED"
+  | "OAUTH_POPUP_CLOSED"
+  | "OAUTH_POPUP_TIMEOUT"
+  | "OAUTH_STATE_MISMATCH"
+  | "OAUTH_FAILED"
+  | "FEDCM_ISS_MISMATCH"
+  | "FEDCM_DISMISSED"
+  | "TOKEN_EXCHANGE_FAILED"
+  | "TOKEN_REFRESH_FAILED"
+  | "TOKEN_EXPIRED"
+  | "DPOP_NONCE_REQUIRED"
+  | "DPOP_INVALID_PROOF"
+  | "STORAGE_CORRUPTION"
+  | "STORAGE_QUOTA_EXCEEDED"
+  | "CRYPTO_UNSUPPORTED"
+  | "WORKER_UNAVAILABLE"
+  | "LOGGED_OUT_ELSEWHERE"
+  | "SECURITY_WIPE"
+  | "API_UNAUTHORIZED"
+  | "API_FORBIDDEN"
+  | "API_NOT_FOUND"
+  | "API_VALIDATION"
+  | "API_SERVER_ERROR"
+  | "AVATAR_TOO_LARGE"
+  | "AVATAR_TYPE_UNSUPPORTED"
+  | "AVATAR_DIMENSIONS_EXCEEDED";
 
 interface WidgetError {
   code: WidgetErrorCode;
   message: string;
-  userMessage?: string;        // localized, end-user-facing; filled by widget's i18n layer
-  traceId?: string;            // X-Trace-Id passthrough
+  userMessage?: string; // localized, end-user-facing; filled by widget's i18n layer
+  traceId?: string; // X-Trace-Id passthrough
   retryable: boolean;
 }
 ```
@@ -81,7 +102,8 @@ interface WidgetError {
 ### 3.2 State enum
 
 ```ts
-type AuthState = "initializing" | "authenticated" | "unauthenticated" | "refreshing" | "error";
+type AuthState =
+  "initializing" | "authenticated" | "unauthenticated" | "refreshing" | "error";
 ```
 
 ## 4. Widget-level fixes
@@ -115,24 +137,24 @@ export interface ProfileWidgetTokens {
   colorFocusRing?: string;
 
   // Typography
-  fontHeading?: string;            // full font-family stack string
+  fontHeading?: string; // full font-family stack string
   fontBody?: string;
-  fontSizeBase?: string;           // e.g. "14px"
-  fontWeightHeading?: number;      // 500–700
+  fontSizeBase?: string; // e.g. "14px"
+  fontWeightHeading?: number; // 500–700
   fontWeightBody?: number;
 
   // Geometry
-  radius?: string;                 // e.g. "16px"
+  radius?: string; // e.g. "16px"
   radiusSm?: string;
-  popoverWidth?: string;           // e.g. "360px"
-  popoverOffset?: string;          // gap between trigger and popover
-  shadow?: string;                 // full box-shadow value
-  zIndexPopover?: number;          // default 10000
-  zIndexDialog?: number;           // default 10001
+  popoverWidth?: string; // e.g. "360px"
+  popoverOffset?: string; // gap between trigger and popover
+  shadow?: string; // full box-shadow value
+  zIndexPopover?: number; // default 10000
+  zIndexDialog?: number; // default 10001
 
   // Avatar sizing
-  triggerSize?: string;            // e.g. "40px"
-  avatarLargeSize?: string;        // e.g. "72px"
+  triggerSize?: string; // e.g. "40px"
+  avatarLargeSize?: string; // e.g. "72px"
 }
 ```
 
@@ -149,6 +171,7 @@ Each token maps 1:1 to an existing `--aiw-*` CSS variable in the stylesheet. A t
 **Layer 3 — raw CSS escape hatch.** `ProfileWidgetProps.css?: string` — arbitrary CSS string appended inside the Shadow DOM as a final `<style>`. Intended for rare layout tweaks the token API cannot express; embedders accept the risk that class names are not a stable API.
 
 **Validation.** On mount, each token value is passed through a light validator:
+
 - Color values: accepted as-is (we do not parse color; CSS rejects invalid values at the property level and the default wins).
 - Size values: must match `/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/` or be a `calc()` expression; invalid values drop with a `console.warn` in dev and no-op in prod.
 - `zIndex*`: must be a finite integer.
@@ -158,19 +181,26 @@ Invalid tokens log via the widget's `logger` hook (default silent) — they neve
 **Token stability contract.** The token names and their semantic meanings are stable API from v1.0. Adding new tokens is minor-version; renaming or removing requires a major.
 
 **Script-tag autoMount** accepts a subset via `data-tokens` as a URL-encoded JSON blob:
+
 ```html
-<script src="..." data-installation-id="..."
-        data-tokens='{"colorPrimary":"#0b7","radius":"12px"}'></script>
+<script
+  src="..."
+  data-installation-id="..."
+  data-tokens='{"colorPrimary":"#0b7","radius":"12px"}'
+></script>
 ```
+
 Parse with `JSON.parse` inside a try/catch; on failure, `console.error` and ignore the attribute. Matches the existing `data-*` convention.
 
 **Dark/light-aware tokens.** When `theme === "auto"`, embedders can pass `tokens.dark` and `tokens.light` as nested partials for theme-conditional overrides:
+
 ```ts
 tokens?: ProfileWidgetTokens & {
   dark?: ProfileWidgetTokens;
   light?: ProfileWidgetTokens;
 };
 ```
+
 `dark` and `light` merge on top of the base tokens when the respective media query / explicit theme is active. Implemented by emitting two small `<style>` blocks scoped to `:host([data-theme="dark"])` / `:host([data-theme="light"])` / `@media (prefers-color-scheme: …) { :host([data-theme="auto"]) }`.
 
 **Brand presets (opt-in convenience).** Ship `packages/profile/src/themes/presets.ts` exporting a handful of `ProfileWidgetTokens` constants (`claudeDark`, `claudeLight`, `neutralLight`, `highContrast`). Embedders opt in with `tokens: presets.neutralLight`. Presets are pure data; tree-shakeable; no new dependencies.
@@ -184,6 +214,7 @@ Build step adds a `scripts/subset-fonts.ts` that uses `fonttools` (py subprocess
 ### 4.4 Gravatar
 
 Off by default. When `gravatar: true`:
+
 - `use-gravatar.ts` runs only after profile load
 - Only for an email where `verified === true`
 - Email always lowercased + trimmed before SHA-256
@@ -208,11 +239,13 @@ const handleChange = async (e) => {
 ```
 
 `validateAvatar` (new util):
+
 1. `file.size <= maxBytes` else `AVATAR_TOO_LARGE`.
 2. Read first 16 bytes; magic-byte check vs allowed signatures (PNG `89 50 4E 47`, JPEG `FF D8 FF`, WebP `RIFF…WEBP`, GIF `47 49 46 38`). Else `AVATAR_TYPE_UNSUPPORTED`.
 3. Probe via `createImageBitmap(file)`; assert `width <= 4096 && height <= 4096`. Else `AVATAR_DIMENSIONS_EXCEEDED`.
 
 `uploadAvatar`:
+
 - Uses `runtime.upload("/profile.v1.ProfileService/UpdateAvatar", file)`.
 - Backend contract change required: separate RPC that accepts multipart. Spec notes this as a **backend dependency**; widget is ready as soon as the RPC exists.
 - Interim fallback (if backend not ready): if `upload` returns 404/405, fall back to base64+JSON path with hard 1 MB cap (already validated). Emit `onError({code:"API_NOT_FOUND", retryable:false})` with a clear "upgrade backend" message in dev.
@@ -220,6 +253,7 @@ const handleChange = async (e) => {
 ### 4.6 Picture URL sanitization
 
 `profile-mapper.ts` runs `sanitizePictureUrl(raw)`:
+
 - Accept `https://` URLs only.
 - Accept `data:image/(png|jpeg|webp|gif);base64,…` with length cap (512 KB base64 ≈ 384 KB decoded).
 - Else return `undefined` (falls back to Gravatar-if-enabled or initials).
@@ -263,6 +297,7 @@ const handleChange = async (e) => {
 ### 4.12 Observability hooks
 
 Forward every lifecycle event:
+
 - `onAuthStateChange(state)` — from runtime
 - `onError(err)` — from runtime + widget operations
 - `onSecurityEvent(event)` — from runtime
@@ -293,6 +328,7 @@ SRI: published IIFE is fingerprinted; README embeds example `<script integrity="
 ### 4.15 Unmount / cleanup
 
 `MountHandle.unmount`:
+
 1. `root.unmount()` (React)
 2. `runtime.destroy()` → terminates Worker, closes BroadcastChannel, clears timers
 3. Removes host element from DOM
@@ -302,15 +338,15 @@ Idempotent. Safe to call twice.
 
 ## 5. Non-token failure modes (widget)
 
-| Scenario | Handling |
-|---|---|
-| Profile fetch fails | State `error: t("errors.loadProfile")`; "Retry" button in `ProfileCard` triggers refetch. |
-| Avatar upload exceeds size | Inline error with `userMessage` localized; input resets. |
-| Contact add returns validation error from server | Inline error under the add-contact input; input retained for edit. |
-| Verification code wrong | Inline error on the dialog; input cleared and refocused; attempts counter shown when backend includes `check_attempts`. |
-| Language/country change fails | Revert the select to previous value; `onError` fired. |
-| Popover closed during in-flight mutation | Mutation completes; state updated in context; no UI flash since popover re-renders with the new state when reopened. |
-| Widget unmounted during in-flight mutation | AbortController cancels the fetch in the Worker; runtime emits `NETWORK_ERROR` (caught silently post-unmount). |
+| Scenario                                         | Handling                                                                                                                |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Profile fetch fails                              | State `error: t("errors.loadProfile")`; "Retry" button in `ProfileCard` triggers refetch.                               |
+| Avatar upload exceeds size                       | Inline error with `userMessage` localized; input resets.                                                                |
+| Contact add returns validation error from server | Inline error under the add-contact input; input retained for edit.                                                      |
+| Verification code wrong                          | Inline error on the dialog; input cleared and refocused; attempts counter shown when backend includes `check_attempts`. |
+| Language/country change fails                    | Revert the select to previous value; `onError` fired.                                                                   |
+| Popover closed during in-flight mutation         | Mutation completes; state updated in context; no UI flash since popover re-renders with the new state when reopened.    |
+| Widget unmounted during in-flight mutation       | AbortController cancels the fetch in the Worker; runtime emits `NETWORK_ERROR` (caught silently post-unmount).          |
 
 ## 6. Scalability & performance
 
@@ -324,6 +360,7 @@ Idempotent. Safe to call twice.
 ## 7. Test plan
 
 Unit:
+
 - `sanitizePictureUrl`
 - `validateAvatar`
 - Theme switching
@@ -331,6 +368,7 @@ Unit:
 - `profileReducer`
 
 Component (React Testing Library + jsdom):
+
 - `ProfileWidgetRoot` — all auth states
 - `VerifyDialog` — focus trap, backdrop, keyboard
 - `ContactMethods` — add / remove / unified verify
@@ -338,16 +376,19 @@ Component (React Testing Library + jsdom):
 - `ErrorBoundary` — reset
 
 Integration (jsdom + `msw` + mock Worker):
+
 - Script-tag autoMount with `data-*` attrs
 - Full add-contact-then-verify flow through the Worker
 - Logout propagation across two runtimes on same page (BroadcastChannel)
 
 A11y (axe-core in CI):
+
 - Popover open/closed, both themes
 - Dialog open
 - RTL snapshot
 
 Visual regression:
+
 - Storybook-based snapshots in dark, light, auto (dark host), auto (light host), RTL.
 
 ## 8. Release

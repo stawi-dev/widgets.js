@@ -25,9 +25,11 @@ export function useGravatarUrl(
     let cancelled = false;
     const normalized = email.trim().toLowerCase();
 
+    // d=identicon: always return an image when the email has no Gravatar
+    // account, so the avatar never breaks to a blank/broken img.
     sha256Hex(normalized).then((hex) => {
       if (!cancelled) {
-        setUrl(`https://www.gravatar.com/avatar/${hex}?s=${size}&d=404`);
+        setUrl(`https://www.gravatar.com/avatar/${hex}?s=${size}&d=identicon`);
       }
     });
 

@@ -1,12 +1,22 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { loadSession, saveSession, clearSession } from "../../worker/store.js";
-import { generateDpopKey, generateWrapKey, wrap, unwrap } from "../../worker/crypto.js";
+import {
+  generateDpopKey,
+  generateWrapKey,
+  wrap,
+  unwrap,
+} from "../../worker/crypto.js";
 
 async function seed(ns: string) {
   const wk = await generateWrapKey();
   const kp = await generateDpopKey();
   const wrapped = await wrap(wk, "rt.test");
-  await saveSession(ns, { wrapKey: wk, dpopKey: kp, wrappedRT: wrapped, lastIdToken: "id" });
+  await saveSession(ns, {
+    wrapKey: wk,
+    dpopKey: kp,
+    wrappedRT: wrapped,
+    lastIdToken: "id",
+  });
   return { wk, kp, wrapped };
 }
 
@@ -92,13 +102,19 @@ describe("store", () => {
 
   it("rejects pre-fix sessions that lack wrapKey + dpopKey", async () => {
     // The exact shape v1.1.0 saveSession produced before the fix.
-    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    const wrappedRT = {
+      iv: new Uint8Array(12),
+      ciphertext: new Uint8Array(16),
+    };
     await putRaw("ns-legacy", { wrappedRT, lastIdToken: "id", updatedAt: 1 });
     expect(await loadSession("ns-legacy")).toBeNull();
   });
 
   it("rejects a session whose wrapKey is missing the expected surface", async () => {
-    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    const wrappedRT = {
+      iv: new Uint8Array(12),
+      ciphertext: new Uint8Array(16),
+    };
     const goodPair = await generateDpopKey();
     await putRaw("ns-bad-wk", {
       wrappedRT,
@@ -109,9 +125,14 @@ describe("store", () => {
   });
 
   it("rejects a session whose dpopKey isn't a full key pair", async () => {
-    const wrappedRT = { iv: new Uint8Array(12), ciphertext: new Uint8Array(16) };
+    const wrappedRT = {
+      iv: new Uint8Array(12),
+      ciphertext: new Uint8Array(16),
+    };
     const wk = await generateWrapKey();
-    const partialPair = (await generateDpopKey()) as unknown as { privateKey: CryptoKey };
+    const partialPair = (await generateDpopKey()) as unknown as {
+      privateKey: CryptoKey;
+    };
     await putRaw("ns-bad-kp", {
       wrappedRT,
       wrapKey: wk,

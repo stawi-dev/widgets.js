@@ -86,7 +86,9 @@ shared/auth-runtime/
 ## 4. Public API (unchanged shape, strengthened semantics)
 
 ```ts
-export interface AuthConfig { /* as in protocol §4 */ }
+export interface AuthConfig {
+  /* as in protocol §4 */
+}
 
 export interface AuthRuntime {
   ensureAuthenticated(): Promise<void>;
@@ -148,15 +150,26 @@ Pure reducer → unit-testable without crypto or network. The Worker holds the i
 // crypto.ts
 export async function generateDpopKey(): Promise<CryptoKeyPair>;
 export async function generateWrapKey(): Promise<CryptoKey>;
-export async function wrap(wk: CryptoKey, plaintext: string): Promise<WrappedBlob>;
+export async function wrap(
+  wk: CryptoKey,
+  plaintext: string,
+): Promise<WrappedBlob>;
 export async function unwrap(wk: CryptoKey, blob: WrappedBlob): Promise<string>;
 export async function exportDpopPublicJwk(k: CryptoKey): Promise<JsonWebKey>;
 export async function signDpopProof(
-  privKey: CryptoKey, publicJwk: JsonWebKey,
-  claims: { htm: string; htu: string; iat: number; jti: string; nonce?: string; ath?: string }
-): Promise<string>;    // compact JWS
+  privKey: CryptoKey,
+  publicJwk: JsonWebKey,
+  claims: {
+    htm: string;
+    htu: string;
+    iat: number;
+    jti: string;
+    nonce?: string;
+    ath?: string;
+  },
+): Promise<string>; // compact JWS
 export async function sha256Base64Url(input: string): Promise<string>;
-export function assertNonExtractable(k: CryptoKey): void;   // throws otherwise
+export function assertNonExtractable(k: CryptoKey): void; // throws otherwise
 ```
 
 `generateDpopKey` uses `ECDSA` / `P-256` / `extractable: false` / `usages: ["sign"]`.
@@ -189,7 +202,10 @@ ObjectStore: sessions
 ```ts
 // coordination.ts
 export function openChannel(namespace: string): BroadcastChannel;
-export async function withRefreshLock<T>(namespace: string, fn: () => Promise<T>): Promise<T>;
+export async function withRefreshLock<T>(
+  namespace: string,
+  fn: () => Promise<T>,
+): Promise<T>;
 ```
 
 `withRefreshLock` uses `navigator.locks.request` with a name scoped to the namespace and `mode: "exclusive"`. On browsers without Web Locks (very old Safari), falls back to a promise-serialized in-memory queue — acceptable since the Worker itself is single-threaded and cross-tab coordination is lost on those browsers.
@@ -201,13 +217,14 @@ export async function withRefreshLock<T>(namespace: string, fn: () => Promise<T>
 export async function fetchT(
   url: string,
   init: RequestInit,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<Response>;
 ```
 
 Wraps in `AbortController`. On abort, throws `AuthError("NETWORK_TIMEOUT")`. On network failure, throws `AuthError("NETWORK_ERROR")`.
 
 Defaults:
+
 - Discovery: 10 s
 - Token endpoint: 10 s
 - API: 30 s
@@ -222,12 +239,12 @@ Configurable via `AuthConfig.timeouts` (new, all optional).
 export interface DpopContext {
   privKey: CryptoKey;
   publicJwk: JsonWebKey;
-  nonceByAudience: Map<string, string>;   // htu origin → nonce
+  nonceByAudience: Map<string, string>; // htu origin → nonce
 }
 
 export async function proof(
   ctx: DpopContext,
-  opts: { htm: string; htu: string; accessToken?: string }
+  opts: { htm: string; htu: string; accessToken?: string },
 ): Promise<string>;
 
 export function rememberNonce(ctx: DpopContext, headers: Headers): void;
@@ -240,6 +257,7 @@ export function rememberNonce(ctx: DpopContext, headers: Headers): void;
 ## 12. Fallback: in-thread mode
 
 If the Worker cannot start, the runtime continues in an in-thread mode:
+
 - Still uses non-extractable CryptoKeys for DPoP + wrap.
 - Still encrypts refresh token at rest.
 - Access token briefly reaches main thread memory (documented weaker posture).
@@ -252,6 +270,7 @@ Main-thread code path lives in `runtime.ts` and reuses the exact same modules (`
 FedCM APIs (`navigator.credentials.get`) must be called from a top-level browsing context with a user gesture for `mediation: "required"`; they work from main thread only. The Worker cannot call them.
 
 Flow:
+
 1. On mount, main thread schedules `fedcmProbeAndSilent()` via `requestIdleCallback`.
 2. If FedCM returns a credential, main thread forwards the ID token to the Worker via `{type: "fedcm-exchange", idToken}`.
 3. Worker decodes, asserts `iss === idpBaseUrl`, performs token-exchange grant with DPoP.
@@ -264,6 +283,7 @@ The FedCM probe is cached per `idpBaseUrl` in `sessionStorage` (not IDB — prob
 Main thread owns `window.open`. Worker cannot.
 
 Flow to preserve user gesture:
+
 1. On sign-in click, main thread synchronously `window.open("about:blank", "stawi-auth", "popup=yes,width=500,height=600")`.
 2. In parallel, main thread requests Worker: `{type: "prepare-auth"}`. Worker generates PKCE, state, returns `{authUrl, correlationId}`.
 3. Main thread sets `popup.location.href = authUrl`. Popup loads IdP.
@@ -277,6 +297,7 @@ This eliminates the Safari/Firefox gesture-loss failure.
 ## 15. Logout
 
 Main-thread proxy calls `worker.logout()`:
+
 1. Worker `POST end_session_endpoint` best-effort with `id_token_hint`, `client_id`, `post_logout_redirect_uri`. 5 s timeout. Errors swallowed.
 2. Worker `POST revocation_endpoint` for the refresh token. 5 s timeout. Errors swallowed.
 3. Worker wipes IDB namespace, in-memory state.
@@ -289,6 +310,7 @@ Main-thread proxy calls `worker.logout()`:
 Runtime emits four callback streams (`onAuthStateChange`, `onError`, `onSecurityEvent`, `onMetric` — the last registered by `mount` options, forwarded into runtime).
 
 `onMetric` signature:
+
 ```ts
 (name: "init" | "sign_in" | "refresh" | "fetch" | "upload",
  durationMs: number,

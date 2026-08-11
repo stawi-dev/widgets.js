@@ -18,6 +18,10 @@ import {
   removeContact as rpcRemove,
 } from "../services/profile-service.js";
 import {
+  stableAvatarProperty,
+  uploadMedia,
+} from "../services/files-service.js";
+import {
   profileObjectToProfileData,
   uiUpdatesToProtoProperties,
   userInfoToProfileData,
@@ -35,14 +39,27 @@ function reducer(state: ProfileState, action: ProfileAction): ProfileState {
     case "LOADING":
       return { ...state, loading: true, error: null };
     case "LOADED":
-      return { loading: false, error: null, profile: action.profile, pendingVerification: null };
+      return {
+        loading: false,
+        error: null,
+        profile: action.profile,
+        pendingVerification: null,
+      };
     case "ERROR":
       return { ...state, loading: false, error: action.error };
     case "UPDATED_PROFILE":
-      return state.profile ? { ...state, profile: { ...state.profile, ...action.updates } } : state;
+      return state.profile
+        ? { ...state, profile: { ...state.profile, ...action.updates } }
+        : state;
     case "ADDED_CONTACT":
       return state.profile
-        ? { ...state, profile: { ...state.profile, contacts: [...state.profile.contacts, action.contact] } }
+        ? {
+            ...state,
+            profile: {
+              ...state.profile,
+              contacts: [...state.profile.contacts, action.contact],
+            },
+          }
         : state;
     case "REMOVED_CONTACT":
       return state.profile
@@ -50,10 +67,14 @@ function reducer(state: ProfileState, action: ProfileAction): ProfileState {
             ...state,
             profile: {
               ...state.profile,
-              contacts: state.profile.contacts.filter((c) => c.id !== action.contactId),
+              contacts: state.profile.contacts.filter(
+                (c) => c.id !== action.contactId,
+              ),
             },
             pendingVerification:
-              state.pendingVerification?.contactId === action.contactId ? null : state.pendingVerification,
+              state.pendingVerification?.contactId === action.contactId
+                ? null
+                : state.pendingVerification,
           }
         : state;
     case "UPDATED_CONTACT":
@@ -105,12 +126,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         // client. Cheaper than the Connect RPC `GetById` round trip
         // we used pre-1.3.0 (no CORS preflight, no Idempotency-Key).
         const userInfo = await getCurrentProfile(runtime);
-        if (!cancelled) dispatch({ type: "LOADED", profile: userInfoToProfileData(userInfo) });
+        if (!cancelled)
+          dispatch({
+            type: "LOADED",
+            profile: userInfoToProfileData(userInfo),
+          });
       } catch (err) {
         if (!cancelled) {
           dispatch({
             type: "ERROR",
-            error: err instanceof Error ? err.message : "Failed to load profile",
+            error:
+              err instanceof Error ? err.message : "Failed to load profile",
           });
         }
       }
@@ -134,15 +160,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     async (file: File) => {
       const profileId = state.profile?.id;
       if (!profileId) return;
-      // /profile prefix routes through the gateway URLRewrite to the
-      // service-profile backend mux; see profile-service.ts for the
-      // full convention writeup.
-      const resp = await runtime.upload<{ data: { properties: { au_avater_uri?: string } } }>(
-        `/profile/profile.v1.ProfileService/UpdateAvatar/${profileId}`,
-        file,
-      );
-      const url = resp.data?.properties?.au_avater_uri;
-      if (url) dispatch({ type: "UPDATED_PROFILE", updates: { picture: url } });
+      // 1) Store bytes in files service
+      // 2) Persist durable mxc:// ref on profile via Connect Update
+      // Display signs the mxc ref via useResolvedAvatarUrl (private media).
+      const uploaded = await uploadMedia(runtime, file);
+      const durable = stableAvatarProperty(uploaded);
+      await rpcUpdate(runtime, profileId, { au_avater_uri: durable });
+      dispatch({ type: "UPDATED_PROFILE", updates: { picture: durable } });
     },
     [runtime, state.profile?.id],
   );
@@ -174,7 +198,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       const ct = type === "email" ? ContactType.EMAIL : ContactType.MSISDN;
       const res = await rpcAdd(runtime, profileId, ct, value);
       const updated = profileObjectToProfileData(res.data);
-      const added = updated.contacts.find((c) => c.value === value) ?? updated.contacts.at(-1);
+      const added =
+        updated.contacts.find((c) => c.value === value) ??
+        updated.contacts.at(-1);
       if (added) {
         dispatch({ type: "ADDED_CONTACT", contact: added });
         dispatch({
@@ -197,7 +223,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const sendVerification = useCallback(
     async (contactId: string) => {
       const res = await createContactVerification(runtime, contactId);
-      dispatch({ type: "PENDING_VERIFICATION", pending: { contactId, verificationId: res.id } });
+      dispatch({
+        type: "PENDING_VERIFICATION",
+        pending: { contactId, verificationId: res.id },
+      });
     },
     [runtime],
   );
@@ -208,10 +237,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       if (!vid) return;
       await checkVerification(runtime, vid, code);
       const existing = state.profile?.contacts.find((c) => c.id === contactId);
-      if (existing) dispatch({ type: "UPDATED_CONTACT", contact: { ...existing, verified: true } });
+      if (existing)
+        dispatch({
+          type: "UPDATED_CONTACT",
+          contact: { ...existing, verified: true },
+        });
       dispatch({ type: "PENDING_VERIFICATION", pending: null });
     },
-    [runtime, state.pendingVerification?.verificationId, state.profile?.contacts],
+    [
+      runtime,
+      state.pendingVerification?.verificationId,
+      state.profile?.contacts,
+    ],
   );
 
   const dismissVerification = useCallback(
@@ -221,7 +258,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const requestVerification = useCallback(
     (contactId: string, verificationId: string) => {
-      dispatch({ type: "PENDING_VERIFICATION", pending: { contactId, verificationId } });
+      dispatch({
+        type: "PENDING_VERIFICATION",
+        pending: { contactId, verificationId },
+      });
     },
     [],
   );
@@ -255,5 +295,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
+  return (
+    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+  );
 }

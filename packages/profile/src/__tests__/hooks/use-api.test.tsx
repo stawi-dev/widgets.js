@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { useApi } from "../../hooks/use-api.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 
 const mockRuntime = {
   fetch: vi.fn(),

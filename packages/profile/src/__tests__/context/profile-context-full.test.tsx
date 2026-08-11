@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ProfileProvider } from "../../context/profile-context.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 import { useProfile } from "../../hooks/use-profile.js";
 import { ContactType, ProfileType } from "../../types.js";
 
@@ -236,24 +239,58 @@ describe("ProfileContext - full coverage", () => {
     expect(result.current.state.pendingVerification).toBeNull();
   });
 
-  it("uploadAvatar calls runtime.upload and updates picture", async () => {
+  it("uploadAvatar uploads to files then updates profile with mxc ref", async () => {
     const { result } = await renderAndLoad();
-    mockUpload.mockResolvedValueOnce({
-      data: { properties: { au_avater_uri: "https://cdn.example.com/avatar.png" } },
+    // 1) files REST upload
+    mockFetch.mockResolvedValueOnce({
+      content_uri: "mxc://files.example/media123",
+    });
+    // 2) profile Connect Update
+    mockFetch.mockResolvedValueOnce({
+      data: {
+        id: "user-1",
+        type: ProfileType.PERSON,
+        properties: { au_avater_uri: "mxc://files.example/media123" },
+        contacts: [],
+        addresses: [],
+        state: 0,
+      },
     });
 
-    const file = new File(["data"], "avatar.png", { type: "image/png" });
+    const file = new File([new Uint8Array([1, 2, 3, 4])], "avatar.png", {
+      type: "image/png",
+    });
+    // jsdom File may lack arrayBuffer — polyfill for the unit test.
+    if (typeof file.arrayBuffer !== "function") {
+      Object.defineProperty(file, "arrayBuffer", {
+        value: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+      });
+    }
 
     await act(async () => {
       await result.current.uploadAvatar(file);
     });
 
-    expect(mockUpload).toHaveBeenCalledWith(
-      "/profile/profile.v1.ProfileService/UpdateAvatar/user-1",
-      file,
+    // First post-load call is files upload; second is profile Update.
+    const uploadCall = mockFetch.mock.calls.find(
+      (c) =>
+        typeof c[0] === "string" &&
+        (c[0] as string).includes("/files/v1/media/upload"),
     );
+    expect(uploadCall).toBeTruthy();
+    expect(uploadCall![1]).toMatchObject({ method: "POST" });
+
+    const updateCall = mockFetch.mock.calls.find(
+      (c) =>
+        typeof c[0] === "string" &&
+        (c[0] as string).includes("/profile/profile.v1.ProfileService/Update"),
+    );
+    expect(updateCall).toBeTruthy();
+    expect(updateCall![1].body).toContain("au_avater_uri");
+    expect(updateCall![1].body).toContain("mxc://files.example/media123");
+
     expect(result.current.state.profile?.picture).toBe(
-      "https://cdn.example.com/avatar.png",
+      "mxc://files.example/media123",
     );
   });
 

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { getProfile, updateProfile, addContact, removeContact } from "../../services/profile-service.js";
+import {
+  getProfile,
+  updateProfile,
+  addContact,
+  removeContact,
+} from "../../services/profile-service.js";
 import { ContactType } from "../../types.js";
 
 function runtimeWith(response: unknown) {
@@ -10,10 +15,15 @@ describe("profile-service", () => {
   it("getProfile calls /profile.v1.ProfileService/GetById via runtime.fetch", async () => {
     const rt = runtimeWith({ data: { id: "1" } });
     await getProfile(rt, "1");
-    expect(rt.fetch).toHaveBeenCalledWith("/profile/profile.v1.ProfileService/GetById", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
-    }));
+    expect(rt.fetch).toHaveBeenCalledWith(
+      "/profile/profile.v1.ProfileService/GetById",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Idempotency-Key": expect.any(String),
+        }),
+      }),
+    );
   });
   it("addContact posts typed body", async () => {
     const rt = runtimeWith({ data: { id: "1" }, verification_id: "v" });
@@ -33,6 +43,9 @@ describe("profile-service", () => {
     await updateProfile(rt, "p1", { au_name: "Alice" });
     const call = rt.fetch.mock.calls[0];
     expect(call[0]).toBe("/profile/profile.v1.ProfileService/Update");
-    expect(JSON.parse((call[1] as any).body)).toEqual({ id: "p1", properties: { au_name: "Alice" } });
+    expect(JSON.parse((call[1] as any).body)).toEqual({
+      id: "p1",
+      properties: { au_name: "Alice" },
+    });
   });
 });

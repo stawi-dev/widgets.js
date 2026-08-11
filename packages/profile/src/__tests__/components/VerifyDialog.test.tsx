@@ -19,7 +19,13 @@ function createProfileWrapper(
         id: "u1",
         name: "Test",
         contacts: [
-          { id: "c1", type: "email", value: "a@b.com", verified: false, primary: false },
+          {
+            id: "c1",
+            type: "email",
+            value: "a@b.com",
+            verified: false,
+            primary: false,
+          },
         ],
         email: undefined,
         language: undefined,
@@ -44,7 +50,9 @@ function createProfileWrapper(
   return {
     value,
     Wrapper: ({ children }: { children: ReactNode }) => (
-      <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+      <ProfileContext.Provider value={value}>
+        {children}
+      </ProfileContext.Provider>
     ),
   };
 }
@@ -52,18 +60,28 @@ function createProfileWrapper(
 describe("VerifyDialog", () => {
   it("renders nothing when no pending verification", () => {
     const { Wrapper } = createProfileWrapper(null);
-    const { container } = render(<VerifyDialog open={true} />, { wrapper: Wrapper });
+    const { container } = render(<VerifyDialog open={true} />, {
+      wrapper: Wrapper,
+    });
     expect(container.innerHTML).toBe("");
   });
 
   it("renders nothing when open=false even with pending verification", () => {
-    const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
-    const { container } = render(<VerifyDialog open={false} />, { wrapper: Wrapper });
+    const { Wrapper } = createProfileWrapper({
+      contactId: "c1",
+      verificationId: "v1",
+    });
+    const { container } = render(<VerifyDialog open={false} />, {
+      wrapper: Wrapper,
+    });
     expect(container.innerHTML).toBe("");
   });
 
   it("renders dialog when open and pending verification exists", () => {
-    const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
+    const { Wrapper } = createProfileWrapper({
+      contactId: "c1",
+      verificationId: "v1",
+    });
     render(<VerifyDialog open={true} />, { wrapper: Wrapper });
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText("Verify Contact")).toBeTruthy();
@@ -106,10 +124,9 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { dismissVerification },
     );
-    render(
-      <VerifyDialog open={true} onMinimize={onMinimize} />,
-      { wrapper: Wrapper },
-    );
+    render(<VerifyDialog open={true} onMinimize={onMinimize} />, {
+      wrapper: Wrapper,
+    });
 
     fireEvent.click(screen.getByText("Cancel"));
     expect(dismissVerification).toHaveBeenCalled();
@@ -123,10 +140,9 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { dismissVerification },
     );
-    render(
-      <VerifyDialog open={true} onMinimize={onMinimize} />,
-      { wrapper: Wrapper },
-    );
+    render(<VerifyDialog open={true} onMinimize={onMinimize} />, {
+      wrapper: Wrapper,
+    });
 
     fireEvent.click(screen.getByLabelText("Minimize"));
     expect(onMinimize).toHaveBeenCalled();
@@ -140,10 +156,9 @@ describe("VerifyDialog", () => {
       { contactId: "c1", verificationId: "v1" },
       { dismissVerification },
     );
-    render(
-      <VerifyDialog open={true} onMinimize={onMinimize} />,
-      { wrapper: Wrapper },
-    );
+    render(<VerifyDialog open={true} onMinimize={onMinimize} />, {
+      wrapper: Wrapper,
+    });
 
     fireEvent.click(screen.getByRole("dialog").parentElement!);
     expect(onMinimize).toHaveBeenCalled();
@@ -173,7 +188,10 @@ describe("VerifyDialog", () => {
   });
 
   it("Tab key stays inside dialog (focus trap)", () => {
-    const { Wrapper } = createProfileWrapper({ contactId: "c1", verificationId: "v1" });
+    const { Wrapper } = createProfileWrapper({
+      contactId: "c1",
+      verificationId: "v1",
+    });
     render(<VerifyDialog open={true} />, { wrapper: Wrapper });
 
     const dialog = screen.getByRole("dialog");

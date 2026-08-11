@@ -9,7 +9,9 @@ if (!globalThis.crypto?.subtle) {
   });
 }
 
-if (!(globalThis as unknown as { BroadcastChannel?: unknown }).BroadcastChannel) {
+if (
+  !(globalThis as unknown as { BroadcastChannel?: unknown }).BroadcastChannel
+) {
   class BC {
     name: string;
     onmessage: ((e: MessageEvent) => void) | null = null;
@@ -24,26 +26,50 @@ if (!(globalThis as unknown as { BroadcastChannel?: unknown }).BroadcastChannel)
         if (c !== this) c.onmessage?.({ data } as MessageEvent);
       }
     }
-    close() { BC.chans.get(this.name)?.delete(this); }
-    addEventListener() {} removeEventListener() {} dispatchEvent() { return true; }
+    close() {
+      BC.chans.get(this.name)?.delete(this);
+    }
+    addEventListener() {}
+    removeEventListener() {}
+    dispatchEvent() {
+      return true;
+    }
   }
-  (globalThis as unknown as { BroadcastChannel: typeof BC }).BroadcastChannel = BC;
+  (globalThis as unknown as { BroadcastChannel: typeof BC }).BroadcastChannel =
+    BC;
 }
 
 if (!(navigator as unknown as { locks?: unknown }).locks) {
   const held = new Map<string, Promise<void>>();
-  (navigator as unknown as {
-    locks: {
-      request: <T>(name: string, opts: unknown, cb: () => Promise<T>) => Promise<T>;
-    };
-  }).locks = {
-    async request<T>(name: string, _opts: unknown, cb: () => Promise<T>): Promise<T> {
+  (
+    navigator as unknown as {
+      locks: {
+        request: <T>(
+          name: string,
+          opts: unknown,
+          cb: () => Promise<T>,
+        ) => Promise<T>;
+      };
+    }
+  ).locks = {
+    async request<T>(
+      name: string,
+      _opts: unknown,
+      cb: () => Promise<T>,
+    ): Promise<T> {
       const prev = held.get(name) ?? Promise.resolve();
       let release!: () => void;
       const next = new Promise<void>((r) => (release = r));
-      held.set(name, prev.then(() => next));
+      held.set(
+        name,
+        prev.then(() => next),
+      );
       await prev;
-      try { return await cb(); } finally { release(); }
+      try {
+        return await cb();
+      } finally {
+        release();
+      }
     },
   };
 }
@@ -87,7 +113,11 @@ export interface TestFedCMControl {
   handlePreventSilentAccess?: () => Promise<void> | void;
   calls: {
     get: TestFedCMCallRecord[];
-    disconnect: Array<{ configURL: string; clientId: string; accountHint?: string }>;
+    disconnect: Array<{
+      configURL: string;
+      clientId: string;
+      accountHint?: string;
+    }>;
     preventSilentAccess: number;
   };
   reset(): void;
@@ -127,7 +157,14 @@ class PolyfilledIdentityCredential {
   readonly isAutoSelected?: boolean;
   readonly configURL?: string;
 
-  constructor(init: { token: string; isAutoSelected?: boolean; configURL?: string; id?: string } = { token: "" }) {
+  constructor(
+    init: {
+      token: string;
+      isAutoSelected?: boolean;
+      configURL?: string;
+      id?: string;
+    } = { token: "" },
+  ) {
     this.id = init.id ?? "";
     this.token = init.token;
     this.isAutoSelected = init.isAutoSelected;
@@ -151,11 +188,17 @@ class PolyfilledIdentityCredential {
   }
 }
 
-(globalThis as unknown as { IdentityCredential: typeof PolyfilledIdentityCredential }).IdentityCredential =
-  PolyfilledIdentityCredential;
+(
+  globalThis as unknown as {
+    IdentityCredential: typeof PolyfilledIdentityCredential;
+  }
+).IdentityCredential = PolyfilledIdentityCredential;
 if (typeof window !== "undefined") {
-  (window as unknown as { IdentityCredential: typeof PolyfilledIdentityCredential }).IdentityCredential =
-    PolyfilledIdentityCredential;
+  (
+    window as unknown as {
+      IdentityCredential: typeof PolyfilledIdentityCredential;
+    }
+  ).IdentityCredential = PolyfilledIdentityCredential;
 }
 
 // --- IdentityCredentialError -------------------------------------------------
@@ -170,8 +213,11 @@ class PolyfilledIdentityCredentialError extends Error {
   }
 }
 
-(globalThis as unknown as { IdentityCredentialError: typeof PolyfilledIdentityCredentialError }).IdentityCredentialError =
-  PolyfilledIdentityCredentialError;
+(
+  globalThis as unknown as {
+    IdentityCredentialError: typeof PolyfilledIdentityCredentialError;
+  }
+).IdentityCredentialError = PolyfilledIdentityCredentialError;
 
 // --- navigator.credentials ---------------------------------------------------
 // Install a stable credentials object whose `get` and `preventSilentAccess`
@@ -182,19 +228,28 @@ interface MinimalCredentials {
   preventSilentAccess?(): Promise<void>;
 }
 
-const existingCredentials = (navigator as unknown as { credentials?: MinimalCredentials }).credentials;
+const existingCredentials = (
+  navigator as unknown as { credentials?: MinimalCredentials }
+).credentials;
 const priorGet = existingCredentials?.get?.bind(existingCredentials);
-const priorPreventSilentAccess = existingCredentials?.preventSilentAccess?.bind(existingCredentials);
+const priorPreventSilentAccess =
+  existingCredentials?.preventSilentAccess?.bind(existingCredentials);
 
-const polyfilledCredentials: Required<Pick<MinimalCredentials, "get" | "preventSilentAccess">> = {
+const polyfilledCredentials: Required<
+  Pick<MinimalCredentials, "get" | "preventSilentAccess">
+> = {
   async get(options?: CredentialRequestOptions): Promise<Credential | null> {
-    const identity = (options as { identity?: IdentityCredentialRequestOptions["identity"] } | undefined)?.identity;
+    const identity = (
+      options as
+        { identity?: IdentityCredentialRequestOptions["identity"] } | undefined
+    )?.identity;
     if (identity) {
       const control = globalThis.__TEST_FEDCM;
       control.calls.get.push({
         mode: identity.mode,
         mediation: options?.mediation,
-        nonce: (identity.providers?.[0] as { nonce?: string } | undefined)?.nonce,
+        nonce: (identity.providers?.[0] as { nonce?: string } | undefined)
+          ?.nonce,
         signal: options?.signal,
         providers: identity.providers,
         context: identity.context,
@@ -215,7 +270,9 @@ const polyfilledCredentials: Required<Pick<MinimalCredentials, "get" | "preventS
       return result as Credential | null;
     }
     if (priorGet) return priorGet(options);
-    throw new Error("navigator.credentials.get called for non-identity credential without a handler");
+    throw new Error(
+      "navigator.credentials.get called for non-identity credential without a handler",
+    );
   },
   async preventSilentAccess(): Promise<void> {
     const control = globalThis.__TEST_FEDCM;

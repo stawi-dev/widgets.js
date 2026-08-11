@@ -26,11 +26,13 @@ aiwidgets/
 ## Working on a Widget
 
 ### Scope your changes
+
 - Only touch files inside `packages/<widget>/` and optionally `shared/utils/`.
 - Never edit another widget's folder as a side effect.
 - Never modify root config files unless the task explicitly requires it.
 
 ### Creating a new widget
+
 Every new widget MUST follow this exact structure:
 
 ```
@@ -43,6 +45,7 @@ packages/<widget-name>/
 ```
 
 **package.json** must include:
+
 - `"name": "@stawi/<widget-name>"`
 - `"version": "0.0.1"` (starting version)
 - `"sideEffects": false`
@@ -55,6 +58,7 @@ packages/<widget-name>/
 **tsup.config.ts** must output ESM + CJS + DTS with sourcemaps.
 
 ### Modifying an existing widget
+
 1. Read the widget's `package.json` and source files first to understand its current state.
 2. Keep changes scoped to that single widget's directory.
 3. Run `pnpm --filter @stawi/<widget-name> build` to verify the build.
@@ -63,15 +67,15 @@ packages/<widget-name>/
 
 ## Tech Stack (do not deviate)
 
-| Concern     | Tool               |
-|-------------|--------------------|
-| Package mgr | pnpm (workspaces)  |
-| Orchestration | Turborepo        |
-| Language    | TypeScript 5       |
-| Build       | tsup (esbuild)     |
-| Test        | Vitest             |
-| Lint/Format | ESLint 9 + Prettier|
-| Versioning  | Changesets (independent mode) |
+| Concern       | Tool                          |
+| ------------- | ----------------------------- |
+| Package mgr   | pnpm (workspaces)             |
+| Orchestration | Turborepo                     |
+| Language      | TypeScript 5                  |
+| Build         | tsup (esbuild)                |
+| Test          | Vitest                        |
+| Lint/Format   | ESLint 9 + Prettier           |
+| Versioning    | Changesets (independent mode) |
 
 ## What NOT to Do
 

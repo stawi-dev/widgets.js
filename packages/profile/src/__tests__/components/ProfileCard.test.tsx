@@ -19,7 +19,10 @@ import { HooksContext } from "../../context/hooks-context.js";
  * - wires dismissVerification / removeContact to update internal state
  *   so the reducer side-effect (clear pending on remove) is simulated.
  */
-function Harness({ initialContacts, initialPending }: {
+function Harness({
+  initialContacts,
+  initialPending,
+}: {
   initialContacts: ContactMethod[];
   initialPending: { contactId: string; verificationId: string } | null;
 }) {
@@ -87,7 +90,10 @@ function renderCard(
   initialPending: { contactId: string; verificationId: string } | null,
 ): ReturnType<typeof render> {
   return render(
-    <Harness initialContacts={initialContacts} initialPending={initialPending} />,
+    <Harness
+      initialContacts={initialContacts}
+      initialPending={initialPending}
+    />,
   );
 }
 

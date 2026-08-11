@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LogoutButton } from "../../components/LogoutButton.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 
 function renderLogout(onLogout?: () => void) {
   const mockLogout = vi.fn().mockResolvedValue(undefined);

@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ProfileProvider } from "../../context/profile-context.js";
-import { AuthContext, type AuthContextValue } from "../../context/auth-context.js";
+import {
+  AuthContext,
+  type AuthContextValue,
+} from "../../context/auth-context.js";
 import { useProfile } from "../../hooks/use-profile.js";
 import { ContactType } from "../../types.js";
 
@@ -88,10 +91,9 @@ describe("ProfileContext", () => {
     // No POST, no Idempotency-Key, no preflight — just a plain GET
     // whose path matches the REST handler on service-profile that
     // resolves the user by JWT subject.
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/profile/public/user/info",
-      { method: "GET" },
-    );
+    expect(mockFetch).toHaveBeenCalledWith("/profile/public/user/info", {
+      method: "GET",
+    });
   });
 
   it("handles API error", async () => {

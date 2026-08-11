@@ -56,6 +56,24 @@ describe("profileObjectToProfileData", () => {
     expect(result.email).toBe("alice@example.com");
   });
 
+  it("falls back to unverified email when none are verified", () => {
+    const result = profileObjectToProfileData(
+      makeProto({
+        contacts: [
+          {
+            id: "c1",
+            type: ContactType.EMAIL,
+            detail: "unverified@example.com",
+            verified: false,
+            communication_level: 0,
+            state: 0,
+          },
+        ],
+      }),
+    );
+    expect(result.email).toBe("unverified@example.com");
+  });
+
   it("marks the contact matching primary email as primary", () => {
     const result = profileObjectToProfileData(makeProto());
     const emailContact = result.contacts.find((c) => c.id === "c1");
@@ -78,17 +96,13 @@ describe("profileObjectToProfileData", () => {
   });
 
   it("handles empty contacts", () => {
-    const result = profileObjectToProfileData(
-      makeProto({ contacts: [] }),
-    );
+    const result = profileObjectToProfileData(makeProto({ contacts: [] }));
     expect(result.email).toBe("");
     expect(result.contacts).toEqual([]);
   });
 
   it("handles missing optional properties", () => {
-    const result = profileObjectToProfileData(
-      makeProto({ properties: {} }),
-    );
+    const result = profileObjectToProfileData(makeProto({ properties: {} }));
     expect(result.name).toBe("");
     expect(result.picture).toBeUndefined();
     expect(result.language).toBeUndefined();

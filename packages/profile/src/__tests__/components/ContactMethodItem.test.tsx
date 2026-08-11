@@ -32,7 +32,9 @@ function createWrapper(overrides: Partial<ProfileContextValue> = {}) {
   return {
     value,
     Wrapper: ({ children }: { children: ReactNode }) => (
-      <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+      <ProfileContext.Provider value={value}>
+        {children}
+      </ProfileContext.Provider>
     ),
   };
 }

@@ -7,7 +7,9 @@
     "url": "git+https://github.com/stawi-dev/widgets.js.git",
     "directory": "shared/utils"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

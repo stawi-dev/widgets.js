@@ -10,14 +10,21 @@ describe("coordination", () => {
     a.postMessage({ type: "logout" });
     await new Promise((r) => setTimeout(r, 5));
     expect(msgs).toEqual([{ type: "logout" }]);
-    a.close(); b.close();
+    a.close();
+    b.close();
   });
 
   it("serializes via lock", async () => {
     const order: number[] = [];
     await Promise.all([
-      withRefreshLock("ns-y", async () => { order.push(1); await new Promise(r => setTimeout(r, 10)); order.push(2); }),
-      withRefreshLock("ns-y", async () => { order.push(3); }),
+      withRefreshLock("ns-y", async () => {
+        order.push(1);
+        await new Promise((r) => setTimeout(r, 10));
+        order.push(2);
+      }),
+      withRefreshLock("ns-y", async () => {
+        order.push(3);
+      }),
     ]);
     expect(order).toEqual([1, 2, 3]);
   });

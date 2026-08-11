@@ -55,10 +55,7 @@ export function ShadowStyleProvider({
       parts.push(block(":host", base as Record<string, unknown>));
       if (dark) {
         parts.push(
-          block(
-            ':host([data-theme="dark"])',
-            dark as Record<string, unknown>,
-          ),
+          block(':host([data-theme="dark"])', dark as Record<string, unknown>),
         );
         const inner = block(
           ':host([data-theme="auto"])',
