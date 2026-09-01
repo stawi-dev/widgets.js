@@ -281,6 +281,23 @@ describe("RolesView", () => {
     );
   });
 
+  it("distinguishes an empty filter result from an empty screen", async () => {
+    renderRoles(makeClient());
+
+    expect(await screen.findByText("No role assignments yet")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by role"), {
+      target: { value: "approval_approver" },
+    });
+
+    expect(
+      await screen.findByText("No role assignments match those filters"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Assign the first role" }),
+    ).toBeNull();
+  });
+
   it("hides revoked assignments until the toggle is on", async () => {
     renderRoles(
       makeClient({

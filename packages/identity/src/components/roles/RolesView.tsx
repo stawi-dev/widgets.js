@@ -122,6 +122,7 @@ export function RolesView() {
     return (assignments.data ?? []).filter((a) => ids.has(a.memberId));
   }, [assignments.data, memberList]);
 
+  const filtered = Boolean(roleKeyFilter || scopeTypeFilter);
   const visible = showRevoked
     ? ours
     : ours.filter((a) => !REVOKED_STATES.has(a.state ?? "CREATED"));
@@ -281,9 +282,11 @@ export function RolesView() {
 
           {visible.length === 0 ? (
             <EmptyState
-              title={t("roles.none")}
-              description={t("roles.noneHint")}
-              action={assignButton("roles.assignFirst")}
+              title={t(filtered ? "roles.noMatches" : "roles.none")}
+              description={t(
+                filtered ? "roles.noMatchesHint" : "roles.noneHint",
+              )}
+              action={filtered ? undefined : assignButton("roles.assignFirst")}
             />
           ) : (
             <table className="aiw-table aiw-roles-table">

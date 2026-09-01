@@ -137,5 +137,7 @@
   "roles.field.scopeType": "Upeo",
   "roles.field.organization": "Shirika",
   "roles.field.orgUnit": "Kitengo",
-  "roles.field.team": "Timu"
+  "roles.field.team": "Timu",
+  "roles.noMatches": "Hakuna migawo ya wadhifa inayolingana na vichujio hivyo",
+  "roles.noMatchesHint": "Jaribu wadhifa au aina nyingine ya upeo."
 }

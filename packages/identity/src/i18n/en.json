@@ -143,5 +143,7 @@
   "roles.field.scopeType": "Scope",
   "roles.field.organization": "Organization",
   "roles.field.orgUnit": "Org unit",
-  "roles.field.team": "Team"
+  "roles.field.team": "Team",
+  "roles.noMatches": "No role assignments match those filters",
+  "roles.noMatchesHint": "Try another role or scope type."
 }
