@@ -46,16 +46,13 @@ export function RolesView() {
   const organizationId = organization?.id ?? "";
   const { orgUnits } = features;
 
+  // The roster is fetched unfiltered: the matrix always shows the whole
+  // picture, and the role-key/scope-type filters narrow only the table below
+  // it, so filtering never makes the counts look like grants disappeared.
   const assignments = useAsync(
     () =>
-      client.accessRoleAssignmentSearch({
-        ...(roleKeyFilter ? { roleKey: roleKeyFilter } : {}),
-        ...(scopeTypeFilter
-          ? { scopeType: scopeTypeFilter as AccessScopeType }
-          : {}),
-        cursor: { limit: SEARCH_LIMIT },
-      }),
-    [client, roleKeyFilter, scopeTypeFilter],
+      client.accessRoleAssignmentSearch({ cursor: { limit: SEARCH_LIMIT } }),
+    [client],
   );
 
   const members = useAsync(
@@ -123,9 +120,12 @@ export function RolesView() {
   }, [assignments.data, memberList]);
 
   const filtered = Boolean(roleKeyFilter || scopeTypeFilter);
-  const visible = showRevoked
-    ? ours
-    : ours.filter((a) => !REVOKED_STATES.has(a.state ?? "CREATED"));
+  const visible = ours.filter(
+    (a) =>
+      (showRevoked || !REVOKED_STATES.has(a.state ?? "CREATED")) &&
+      (!roleKeyFilter || a.roleKey === roleKeyFilter) &&
+      (!scopeTypeFilter || a.scopeType === scopeTypeFilter),
+  );
 
   const matrixRows = useMemo<RoleMatrixRow[]>(() => {
     const keys = [

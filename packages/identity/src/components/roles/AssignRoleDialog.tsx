@@ -38,7 +38,7 @@ export function AssignRoleDialog({
   onClose,
   onSaved,
 }: AssignRoleDialogProps) {
-  const { client, vocabulary, organization } = useIdentity();
+  const { client, vocabulary, features, organization } = useIdentity();
   const hooks = useContext(HooksContext);
   const t = useT();
 
@@ -49,6 +49,16 @@ export function AssignRoleDialog({
       ...members.filter((m) => m.state !== "ACTIVE"),
     ],
     [members],
+  );
+
+  // Unit scopes are only reachable when the org-unit screen is on; offering
+  // them otherwise is a dead end with an empty target select.
+  const scopeOptions = useMemo(
+    () =>
+      SCOPE_TYPES.filter(
+        (scope) => features.orgUnits || scope !== "ACCESS_SCOPE_TYPE_ORG_UNIT",
+      ),
+    [features.orgUnits],
   );
 
   const [memberId, setMemberId] = useState(candidates[0]?.id ?? "");
@@ -80,6 +90,11 @@ export function AssignRoleDialog({
   useEffect(() => {
     if (!teamId && firstTeamId) setTeamId(firstTeamId);
   }, [teamId, firstTeamId]);
+  useEffect(() => {
+    if (!scopeOptions.includes(scopeType)) {
+      setScopeType("ACCESS_SCOPE_TYPE_ORGANIZATION");
+    }
+  }, [scopeOptions, scopeType]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -214,7 +229,7 @@ export function AssignRoleDialog({
               value={scopeType}
               onChange={(e) => setScopeType(e.target.value as AccessScopeType)}
             >
-              {SCOPE_TYPES.map((scope) => (
+              {scopeOptions.map((scope) => (
                 <option key={scope} value={scope}>
                   {t(`roles.scope.${scope}`)}
                 </option>

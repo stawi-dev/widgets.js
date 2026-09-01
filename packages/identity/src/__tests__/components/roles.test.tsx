@@ -255,30 +255,58 @@ describe("RolesView", () => {
     ).toEqual(["1", "1", "0", "0"]);
   });
 
-  it("passes the chosen role key and scope type to the search", async () => {
-    const search = vi.fn().mockResolvedValue([]);
+  it("filters the table client-side while the matrix keeps the full roster", async () => {
+    const search = vi.fn().mockResolvedValue([
+      assignment(),
+      assignment({
+        id: "a2",
+        roleKey: "approval_approver",
+        scopeType: "ACCESS_SCOPE_TYPE_GLOBAL",
+        scopeId: undefined,
+      }),
+    ]);
     renderRoles(makeClient({ accessRoleAssignmentSearch: search }));
 
-    fireEvent.change(await screen.findByLabelText("Filter by role"), {
+    const matrix = await screen.findByRole("table", {
+      name: "Assignments by role and scope",
+    });
+    const counts = () =>
+      within(matrix)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+          within(row)
+            .getAllByRole("cell")
+            .map((c) => c.textContent)
+            .join(""),
+        );
+    const before = counts();
+    expect(before[0]).toBe("0100");
+    expect(before[1]).toBe("1000");
+    expect((await assignmentsTable()).getAllByRole("row")).toHaveLength(3);
+
+    fireEvent.change(screen.getByLabelText("Filter by role"), {
       target: { value: "approval_approver" },
     });
-    await waitFor(() =>
-      expect(search).toHaveBeenLastCalledWith({
-        roleKey: "approval_approver",
-        cursor: { limit: 50 },
-      }),
-    );
+
+    const table = await assignmentsTable();
+    await waitFor(() => expect(table.getAllByRole("row")).toHaveLength(2));
+    expect(table.getByText("Approver")).toBeTruthy();
+    expect(table.queryByText("Administrator")).toBeNull();
+    // The roster is fetched once, unfiltered, so the counts stand.
+    expect(counts()).toEqual(before);
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledWith({ cursor: { limit: 50 } });
 
     fireEvent.change(screen.getByLabelText("Filter by scope type"), {
       target: { value: "ACCESS_SCOPE_TYPE_TEAM" },
     });
     await waitFor(() =>
-      expect(search).toHaveBeenLastCalledWith({
-        roleKey: "approval_approver",
-        scopeType: "ACCESS_SCOPE_TYPE_TEAM",
-        cursor: { limit: 50 },
-      }),
+      expect(
+        screen.getByText("No role assignments match those filters"),
+      ).toBeTruthy(),
     );
+    expect(counts()).toEqual(before);
   });
 
   it("distinguishes an empty filter result from an empty screen", async () => {
@@ -530,6 +558,36 @@ describe("AssignRoleDialog", () => {
       ),
     ).toBeTruthy();
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("hides the org-unit scope unless the org-unit feature is on", async () => {
+    renderRoles(makeClient());
+    await openAssign();
+
+    const options = () =>
+      Array.from(
+        (screen.getByLabelText("Scope") as HTMLSelectElement).options,
+      ).map((o) => o.value);
+    expect(options()).toEqual([
+      "ACCESS_SCOPE_TYPE_GLOBAL",
+      "ACCESS_SCOPE_TYPE_ORGANIZATION",
+      "ACCESS_SCOPE_TYPE_TEAM",
+    ]);
+  });
+
+  it("offers the org-unit scope when the org-unit feature is on", async () => {
+    renderRoles(
+      makeClient({ orgUnitSearch: vi.fn().mockResolvedValue([unit()]) }),
+      makeResolver([{ id: "p1", name: "Ada Lovelace" }]),
+      { orgUnits: true },
+    );
+    await openAssign();
+
+    expect(
+      Array.from(
+        (screen.getByLabelText("Scope") as HTMLSelectElement).options,
+      ).map((o) => o.value),
+    ).toContain("ACCESS_SCOPE_TYPE_ORG_UNIT");
   });
 
   it("shows the save error inline", async () => {
