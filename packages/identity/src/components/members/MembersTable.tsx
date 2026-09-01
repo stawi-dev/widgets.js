@@ -1,6 +1,7 @@
 import { useIdentity } from "../../context/identity-context.js";
 import { useT } from "../../hooks/use-t.js";
-import { optionLabel, platformRoleOf } from "./labels.js";
+import { optionLabel } from "../labels.js";
+import { platformRoleOf } from "./labels.js";
 import type { ProfileSummary } from "../../services/profile-resolver.js";
 import type { WorkforceMember } from "../../types.js";
 
