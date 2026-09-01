@@ -1,6 +1,7 @@
 // shared/auth-runtime/src/worker/api-proxy.ts
 import type { ResolvedConfig, ApiResponse } from "../shared/types.js";
 import { AuthError } from "../shared/errors.js";
+import { resolveApiUrl } from "../shared/config.js";
 import type { DpopContext } from "./dpop.js";
 import { proof, rememberNonce } from "./dpop.js";
 import { fetchT } from "./fetchWithTimeout.js";
@@ -28,7 +29,7 @@ export async function proxyFetch(
   tp: TokenProvider,
   args: FetchArgs,
 ): Promise<ApiResponse<ArrayBuffer>> {
-  const url = `${cfg.apiBaseUrl}${args.path}`;
+  const url = resolveApiUrl(cfg, args.path);
   const timeout = args.timeoutMs ?? cfg.timeouts.api;
 
   async function doCall(

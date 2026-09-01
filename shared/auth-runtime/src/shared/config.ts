@@ -36,6 +36,7 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
     clientId: config.clientId,
     idpBaseUrl,
     apiBaseUrl,
+    allowedApiOrigins: (config.allowedApiOrigins ?? []).map(strip),
     redirectUri,
     logoutRedirectUri,
     scopes: config.scopes ?? [...DEFAULTS.scopes],
@@ -46,6 +47,30 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
     timeouts: { ...DEFAULTS.timeouts, ...(config.timeouts ?? {}) },
     fedcm: config.fedcm ?? {},
   };
+}
+
+/**
+ * Resolves a `fetch()` path against `cfg.apiBaseUrl`. A relative path (no
+ * scheme) is prefixed with `apiBaseUrl` unchanged. An absolute URL is
+ * returned as-is only when its origin matches `apiBaseUrl` or is listed in
+ * `cfg.allowedApiOrigins`; any other origin throws `INVALID_CONFIG`.
+ */
+export function resolveApiUrl(cfg: ResolvedConfig, path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    const origin = new URL(path).origin;
+    const allowed = new Set([
+      new URL(cfg.apiBaseUrl).origin,
+      ...cfg.allowedApiOrigins,
+    ]);
+    if (!allowed.has(origin)) {
+      throw new AuthError(
+        "INVALID_CONFIG",
+        `API origin not allowed: ${origin}`,
+      );
+    }
+    return path;
+  }
+  return `${cfg.apiBaseUrl}${path}`;
 }
 
 export function namespaceOf(cfg: {

@@ -13,6 +13,16 @@ export interface AuthConfig {
    */
   idpBaseUrl?: string;
   apiBaseUrl?: string;
+  /**
+   * Additional origins that `fetch()` may target with an absolute URL,
+   * beyond `apiBaseUrl` itself. Used by embeddable widgets that call a
+   * different API host through this same runtime (e.g. the identity widget
+   * calling https://api.stawi.org/identity from a host page whose
+   * apiBaseUrl points elsewhere). A relative path is always prefixed with
+   * `apiBaseUrl`; an absolute URL whose origin is neither `apiBaseUrl`'s
+   * origin nor listed here is rejected with `INVALID_CONFIG`.
+   */
+  allowedApiOrigins?: string[];
   redirectUri?: string;
   /**
    * Where the authorization server should return the browser after a full
@@ -53,6 +63,7 @@ export interface ResolvedConfig {
   clientId: string;
   idpBaseUrl: string;
   apiBaseUrl: string;
+  allowedApiOrigins: string[];
   redirectUri: string;
   logoutRedirectUri: string;
   scopes: string[];
