@@ -51,6 +51,34 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(jsdom@25.0.1)(msw@2.13.4(typescript@5.9.3))
 
+  packages/identity:
+    dependencies:
+      '@stawi/auth-runtime':
+        specifier: workspace:*
+        version: link:../../shared/auth-runtime
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.0.0
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.28)
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+
   packages/profile:
     dependencies:
       '@stawi/auth-runtime':
