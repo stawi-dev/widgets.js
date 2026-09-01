@@ -61,6 +61,23 @@ export interface AuthRuntime {
    * trigger or the `/auth/callback/` landing page.
    */
   completeRedirect(): Promise<{ returnTo: string }>;
+  /**
+   * Calls the API through the worker (attaching auth headers and DPoP
+   * proofs). `path` may be relative — prefixed with `apiBaseUrl` — or an
+   * absolute URL, which is only allowed when its origin equals
+   * `apiBaseUrl`'s origin or is listed in `AuthConfig.allowedApiOrigins`;
+   * any other origin throws `INVALID_CONFIG`. This lets one runtime
+   * instance serve requests to a second API host (e.g. an embedded widget
+   * calling its own backend) without weakening the same-origin default.
+   *
+   * `responseType` controls how the response body is decoded:
+   * - `"arraybuffer"` returns the raw `ArrayBuffer` (e.g. for Connect
+   *   stream bytes the caller decodes itself).
+   * - `"text"` decodes the body as UTF-8 text.
+   * - `"json"` parses the body as JSON (empty body resolves `undefined`).
+   * - omitted (default): JSON-parses when `content-type` is
+   *   `application/json`, otherwise decodes as text.
+   */
   fetch<T = unknown>(
     path: string,
     init?: {
@@ -68,6 +85,7 @@ export interface AuthRuntime {
       headers?: Record<string, string>;
       body?: string | ArrayBuffer | null;
       timeoutMs?: number;
+      responseType?: "json" | "text" | "arraybuffer";
     },
   ): Promise<T>;
   upload<T = unknown>(path: string, file: File): Promise<T>;
@@ -198,7 +216,15 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
   async function parse<T>(
     body: ArrayBuffer,
     headers: Record<string, string>,
+    responseType?: "json" | "text" | "arraybuffer",
   ): Promise<T> {
+    if (responseType === "arraybuffer") return body as unknown as T;
+    if (responseType === "text")
+      return new TextDecoder().decode(body) as unknown as T;
+    if (responseType === "json") {
+      if (body.byteLength === 0) return undefined as T;
+      return JSON.parse(new TextDecoder().decode(body)) as T;
+    }
     if (body.byteLength === 0) return undefined as T;
     const ct = headers["content-type"] ?? "";
     if (ct.includes("application/json")) {
@@ -248,6 +274,7 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
         headers?: Record<string, string>;
         body?: string | ArrayBuffer | null;
         timeoutMs?: number;
+        responseType?: "json" | "text" | "arraybuffer";
       },
     ) {
       const core = await corePromise;
@@ -256,8 +283,9 @@ export function createAuthRuntime(config: AuthConfig): AuthRuntime {
         headers: init?.headers,
         body: init?.body ?? null,
         timeoutMs: init?.timeoutMs,
+        responseType: init?.responseType,
       });
-      return parse<T>(res.body, res.headers);
+      return parse<T>(res.body, res.headers, init?.responseType);
     },
     async upload<T = unknown>(path: string, file: File) {
       const core = await corePromise;

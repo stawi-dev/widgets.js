@@ -50,6 +50,7 @@ export interface WorkerCore {
       headers?: Record<string, string>;
       body?: ArrayBuffer | string | null;
       timeoutMs?: number;
+      responseType?: "json" | "text" | "arraybuffer";
     },
   ): Promise<{
     status: number;
@@ -341,6 +342,7 @@ export async function createWorkerCore(
       headers?: Record<string, string>;
       body?: ArrayBuffer | string | null;
       timeoutMs?: number;
+      responseType?: "json" | "text" | "arraybuffer";
     },
   ) {
     if (!dpopCtx || !tokens)

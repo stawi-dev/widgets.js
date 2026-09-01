@@ -71,12 +71,6 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
-      - name: Build all packages
-        run: pnpm turbo run build
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-
       - name: Extract version from tag
         id: version
         env:
@@ -96,6 +90,15 @@ jobs:
             pnpm --filter "$(node -p "require('./$pkg').name")" exec \
               npm version "$VERSION" --no-git-tag-version --allow-same-version
           done
+
+      # Must run AFTER the version stamping above: tsup bakes each package's
+      # package.json version into the bundle (__STAWI_*_VERSION__ defines),
+      # so building first would ship the stale in-repo version string.
+      - name: Build all packages
+        run: pnpm turbo run build
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       # Two-step publish: pack first with pnpm (rewrites `workspace:*`
       # specifiers to the resolved version), then publish the tarballs
