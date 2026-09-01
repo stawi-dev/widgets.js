@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { AuthRuntime } from "@stawi/auth-runtime";
-import { IdentityWidgetRoot } from "../../components/IdentityWidgetRoot.js";
+import {
+  IdentityWidgetRoot,
+  deriveProfileApiBaseUrl,
+} from "../../components/IdentityWidgetRoot.js";
 import type { IdentityClient } from "../../services/identity-client.js";
+import type { ProfileResolver } from "../../services/profile-resolver.js";
 import type { Organization } from "../../types.js";
 
 const ORG: Organization = { id: "o1", name: "Acme Imports", code: "ACME" };
@@ -23,17 +27,19 @@ const client: IdentityClient = {
   accessRoleAssignmentSave: vi.fn(),
 };
 
-const createIdentityClient = vi.fn(() => client);
-const createProfileResolver = vi.fn(() => ({
+const createIdentityClient = vi.fn<(deps: unknown) => IdentityClient>(
+  () => client,
+);
+const createProfileResolver = vi.fn<(deps: unknown) => ProfileResolver>(() => ({
   resolve: vi.fn().mockResolvedValue(new Map()),
   byContact: vi.fn(),
 }));
 
 vi.mock("../../services/identity-client.js", () => ({
-  createIdentityClient: (...args: unknown[]) => createIdentityClient(...args),
+  createIdentityClient: (deps: unknown) => createIdentityClient(deps),
 }));
 vi.mock("../../services/profile-resolver.js", () => ({
-  createProfileResolver: (...args: unknown[]) => createProfileResolver(...args),
+  createProfileResolver: (deps: unknown) => createProfileResolver(deps),
 }));
 
 function runtime(): AuthRuntime {
@@ -240,5 +246,20 @@ describe("IdentityWidgetRoot", () => {
       createIdentityClient.mockImplementation(() => client);
       spy.mockRestore();
     }
+  });
+});
+
+describe("deriveProfileApiBaseUrl", () => {
+  it.each([
+    ["https://api.stawi.org/identity", "https://api.stawi.org/profile"],
+    ["https://api.stawi.org/identity/", "https://api.stawi.org/profile"],
+    ["https://api.stawi.org/v1/identity", "https://api.stawi.org/v1/profile"],
+    ["https://api.stawi.org", "https://api.stawi.org/profile"],
+  ])("%s -> %s", (input, expected) => {
+    expect(deriveProfileApiBaseUrl(input)).toBe(expected);
+  });
+
+  it("returns an unparseable base URL unchanged", () => {
+    expect(deriveProfileApiBaseUrl("not a url")).toBe("not a url");
   });
 });

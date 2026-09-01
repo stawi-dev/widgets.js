@@ -10,7 +10,18 @@ describe("package entry points", () => {
     expect(new identity.IdentityError("x", "y")).toBeInstanceOf(Error);
   });
 
-  it("re-exports the data layer from the IIFE bootstrap", () => {
-    expect(Object.keys(bootstrap).sort()).toEqual(Object.keys(identity).sort());
+  it("exports the widget entry points", () => {
+    expect(typeof identity.mount).toBe("function");
+    expect(typeof identity.IdentityWidgetRoot).toBe("function");
+    expect(typeof identity.mergeVocabulary).toBe("function");
+    expect(identity.commerceVocabulary.teamTypes.length).toBeGreaterThan(0);
+    expect(identity.claudeDark.colorPrimary).toBeTruthy();
+  });
+
+  it("re-exports the whole public API from the IIFE bootstrap", () => {
+    // window.StawiIdentity must carry everything the ESM entry does.
+    for (const key of Object.keys(identity)) {
+      expect(Object.keys(bootstrap)).toContain(key);
+    }
   });
 });

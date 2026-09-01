@@ -15,6 +15,9 @@ export default defineConfig([
     entry: { "identity.iife": "src/bootstrap.ts" },
     format: ["iife"],
     globalName: "StawiIdentity",
+    // tsup names IIFE output `*.global.js` by default; the published CDN
+    // path (and the README) use the plain `identity.iife.js`.
+    outExtension: () => ({ js: ".js" }),
     noExternal: [/.*/],
     minify: true,
     sourcemap: false,

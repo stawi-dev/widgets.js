@@ -47,8 +47,8 @@ const MEMBERS: WorkforceMember[] = [
 ];
 
 const PROFILES = new Map<string, ProfileSummary>([
-  ["p1", { id: "p1", name: "Jane Doe", contact: "jane@example.com" }],
-  ["p2", { id: "p2", name: "John Roe", contact: "+254700000000" }],
+  ["p1", { id: "p1", name: "Jane Doe", email: "jane@example.com" }],
+  ["p2", { id: "p2", name: "John Roe", phone: "+254700000000" }],
 ]);
 
 const client: IdentityClient = {
