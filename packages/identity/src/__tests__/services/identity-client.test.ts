@@ -1,8 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { createIdentityClient } from "../../services/identity-client.js";
+import { IdentityError } from "../../services/errors.js";
 import { concat, envelope } from "./envelope-fixture.js";
 
 type Call = [string, any];
+
+/** Mirrors @stawi/auth-runtime's AuthError as thrown by the worker API proxy
+ *  on a non-2xx response: `API <status>: <first 200 bytes of body>`. */
+function authError(code: string, message: string): Error & { code: string } {
+  const err = new Error(message) as Error & { code: string };
+  err.name = "AuthError";
+  err.code = code;
+  return err;
+}
 
 function fakeRuntime(respond: (path: string, init: any) => unknown) {
   const calls: Call[] = [];
@@ -108,16 +118,129 @@ describe("createIdentityClient", () => {
     );
   });
 
-  it("throws IdentityError when a unary response carries no data", async () => {
+  it("throws invalid_response when a unary response is shapeless", async () => {
     const { runtime } = fakeRuntime(() => ({}));
     const c = createIdentityClient({
       runtime,
       apiBaseUrl: "https://api.stawi.org/identity",
     });
 
-    await expect(c.organizationSave({ code: "ACME" })).rejects.toThrow(
-      /empty response/i,
-    );
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err.code).toBe("invalid_response");
+  });
+
+  it("surfaces the Connect error carried by a thrown AuthError", async () => {
+    const { runtime } = fakeRuntime(() => {
+      throw authError(
+        "API_FORBIDDEN",
+        'API 403: {"code":"permission_denied","message":"missing role"}',
+      );
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(IdentityError);
+    expect(err.code).toBe("permission_denied");
+    expect(err.message).toContain("missing role");
+  });
+
+  it("surfaces a thrown Connect error from a search RPC too", async () => {
+    const { runtime } = fakeRuntime(() => {
+      throw authError(
+        "API_UNAUTHORIZED",
+        'API 401: {"code":"unauthenticated","message":"token expired"}',
+      );
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.internalTeamSearch({}).catch((e) => e);
+
+    expect(err).toBeInstanceOf(IdentityError);
+    expect(err.code).toBe("unauthenticated");
+    expect(err.message).toContain("token expired");
+  });
+
+  it("falls back to the AuthError code when the body is not a Connect error", async () => {
+    const { runtime } = fakeRuntime(() => {
+      throw authError("API_SERVER_ERROR", "API 500: upstream exploded");
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err.code).toBe("API_SERVER_ERROR");
+    expect(err.message).toContain("upstream exploded");
+  });
+
+  it("falls back to the AuthError code when the body JSON is truncated", async () => {
+    const { runtime } = fakeRuntime(() => {
+      throw authError("API_SERVER_ERROR", 'API 500: {"code":"internal","mess');
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err.code).toBe("API_SERVER_ERROR");
+    expect(err.message).toContain("API 500");
+  });
+
+  it("wraps a non-Error rejection", async () => {
+    const { runtime } = fakeRuntime(() => {
+      throw "boom";
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(IdentityError);
+    expect(err.code).toBe("unknown");
+    expect(err.message).toContain("boom");
+  });
+
+  it("passes an already-normalised IdentityError through unchanged", async () => {
+    const original = new IdentityError("aborted", "aborted: cancelled");
+    const { runtime } = fakeRuntime(() => {
+      throw original;
+    });
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    await expect(c.organizationSave({ code: "ACME" })).rejects.toBe(original);
+  });
+
+  it("surfaces a resolved Connect error body that carries no data", async () => {
+    const { runtime } = fakeRuntime(() => ({
+      code: "not_found",
+      message: "no such organization",
+    }));
+    const c = createIdentityClient({
+      runtime,
+      apiBaseUrl: "https://api.stawi.org/identity",
+    });
+
+    const err = await c.organizationSave({ code: "ACME" }).catch((e) => e);
+
+    expect(err.code).toBe("not_found");
+    expect(err.message).toContain("no such organization");
   });
 
   it("maps every RPC to its Connect method name", async () => {

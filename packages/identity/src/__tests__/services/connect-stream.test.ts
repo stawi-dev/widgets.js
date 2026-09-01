@@ -43,6 +43,21 @@ describe("decodeConnectStream", () => {
     expect(() => decodeConnectStream(buf)).toThrow(/unknown: boom/);
   });
 
+  it("throws a generic error for a trailer error with neither code nor message", () => {
+    const buf = concat(envelope(2, '{"error":{"details":[]}}'));
+    expect(() => decodeConnectStream(buf)).toThrow(/unknown/);
+  });
+
+  it("rejects compressed envelopes explicitly", () => {
+    const buf = concat(envelope(0x01, '{"data":{"id":"a"}}'));
+    expect(() => decodeConnectStream(buf)).toThrow(/compressed/i);
+    try {
+      decodeConnectStream(buf);
+    } catch (err) {
+      expect((err as IdentityError).code).toBe("unsupported");
+    }
+  });
+
   it("throws on a truncated envelope", () => {
     const full = new Uint8Array(concat(envelope(0, '{"data":{"id":"a"}}')));
     const buf = full.slice(0, full.length - 3).buffer;

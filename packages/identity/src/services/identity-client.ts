@@ -1,6 +1,6 @@
 import type { AuthRuntime } from "@stawi/auth-runtime";
 import { decodeConnectStream } from "./connect-stream.js";
-import { IdentityError } from "./errors.js";
+import { fromConnectError, identityError, toIdentityError } from "./errors.js";
 import type {
   AccessRoleAssignment,
   AccessScopeType,
@@ -104,24 +104,36 @@ export function createIdentityClient(deps: IdentityClientDeps): IdentityClient {
   }
 
   async function unary<T>(rpc: string, body: unknown): Promise<T> {
-    const res = await deps.runtime.fetch<{ data?: T }>(url(rpc), {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify(body),
-    });
-    if (!res || res.data === undefined || res.data === null) {
-      throw new IdentityError("invalid_response", `Empty response from ${rpc}`);
-    }
-    return res.data;
+    // A non-2xx response reaches us as an AuthError whose message embeds
+    // the Connect error body; `toIdentityError` recovers the real code.
+    const res = await deps.runtime
+      .fetch<{ data?: T } & Record<string, unknown>>(url(rpc), {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(body),
+      })
+      .catch((err: unknown) => {
+        throw toIdentityError(err);
+      });
+    if (res && res.data !== undefined && res.data !== null) return res.data;
+    // Some deployments answer 200 with a bare Connect error body.
+    throw (
+      fromConnectError(res) ??
+      identityError("invalid_response", `Empty response from ${rpc}`)
+    );
   }
 
   async function stream<T>(rpc: string, body: unknown): Promise<T[]> {
-    const buf = await deps.runtime.fetch<ArrayBuffer>(url(rpc), {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify(body),
-      responseType: "arraybuffer",
-    });
+    const buf = await deps.runtime
+      .fetch<ArrayBuffer>(url(rpc), {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(body),
+        responseType: "arraybuffer",
+      })
+      .catch((err: unknown) => {
+        throw toIdentityError(err);
+      });
     const out: T[] = [];
     for (const msg of decodeConnectStream<{ data?: T[] | T }>(buf)) {
       const data = msg?.data;

@@ -1,11 +1,13 @@
-import { IdentityError } from "./errors.js";
+import { fromConnectError, identityError } from "./errors.js";
 
+/** Connect envelope flag bit marking a compressed payload. */
+const COMPRESSED_FLAG = 0x01;
 /** Connect envelope flag bit marking the end-of-stream trailer. */
 const TRAILER_FLAG = 0x02;
 const HEADER_BYTES = 5;
 
 interface Trailer {
-  error?: { code?: string; message?: string };
+  error?: unknown;
 }
 
 /**
@@ -24,7 +26,7 @@ export function decodeConnectStream<T>(buf: ArrayBuffer): T[] {
 
   while (offset < bytes.length) {
     if (offset + HEADER_BYTES > bytes.length) {
-      throw new IdentityError(
+      throw identityError(
         "invalid_response",
         "Truncated Connect stream: incomplete envelope header",
       );
@@ -34,9 +36,18 @@ export function decodeConnectStream<T>(buf: ArrayBuffer): T[] {
     const start = offset + HEADER_BYTES;
     const end = start + length;
     if (end > bytes.length) {
-      throw new IdentityError(
+      throw identityError(
         "invalid_response",
         "Truncated Connect stream: envelope payload shorter than declared length",
+      );
+    }
+    if (flags & COMPRESSED_FLAG) {
+      // The client never advertises an encoding, so a compressed
+      // envelope means the server ignored that — say so instead of
+      // failing later with a misleading JSON parse error.
+      throw identityError(
+        "unsupported",
+        "Compressed Connect stream envelopes are not supported",
       );
     }
     const json = new TextDecoder().decode(bytes.subarray(start, end));
@@ -45,11 +56,10 @@ export function decodeConnectStream<T>(buf: ArrayBuffer): T[] {
     if (flags & TRAILER_FLAG) {
       const trailer = parse<Trailer>(json);
       if (trailer.error) {
-        const code = trailer.error.code ?? "unknown";
-        // The code is folded into the message so the raw Error string
-        // carries it too (logs, toasts, `expect(...).toThrow(/code/)`).
-        const detail = trailer.error.message;
-        throw new IdentityError(code, detail ? `${code}: ${detail}` : code);
+        throw (
+          fromConnectError(trailer.error) ??
+          identityError("unknown", describe(trailer.error))
+        );
       }
       continue;
     }
@@ -63,9 +73,15 @@ function parse<T>(json: string): T {
   try {
     return JSON.parse(json) as T;
   } catch {
-    throw new IdentityError(
+    throw identityError(
       "invalid_response",
       "Invalid JSON in Connect stream envelope",
     );
   }
+}
+
+/** Best-effort text for a trailer error that carries no `code`. */
+function describe(error: unknown): string | undefined {
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" ? message : undefined;
 }
