@@ -15,12 +15,17 @@ export interface AuthConfig {
   apiBaseUrl?: string;
   /**
    * Additional origins that `fetch()` may target with an absolute URL,
-   * beyond `apiBaseUrl` itself. Used by embeddable widgets that call a
-   * different API host through this same runtime (e.g. the identity widget
-   * calling https://api.stawi.org/identity from a host page whose
-   * apiBaseUrl points elsewhere). A relative path is always prefixed with
-   * `apiBaseUrl`; an absolute URL whose origin is neither `apiBaseUrl`'s
-   * origin nor listed here is rejected with `INVALID_CONFIG`.
+   * beyond `apiBaseUrl` itself. Each entry is normalized to a bare origin
+   * via `new URL(entry).origin` (so `https://api.stawi.org/identity` and
+   * `https://API.stawi.org` both normalize to `https://api.stawi.org`); an
+   * entry that isn't a valid absolute URL throws `INVALID_CONFIG` when the
+   * config is resolved. Used by embeddable widgets that call a different
+   * API host through this same runtime (e.g. the identity widget calling
+   * https://api.stawi.org/identity from a host page whose apiBaseUrl points
+   * elsewhere — `allowedApiOrigins: ["https://api.stawi.org"]`). A relative
+   * `fetch()` path is always prefixed with `apiBaseUrl`; an absolute URL
+   * whose origin is neither `apiBaseUrl`'s origin nor listed here is
+   * rejected with `INVALID_CONFIG`.
    */
   allowedApiOrigins?: string[];
   redirectUri?: string;

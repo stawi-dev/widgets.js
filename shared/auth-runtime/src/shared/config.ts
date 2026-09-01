@@ -23,6 +23,16 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
   const idpBaseUrl = strip(config.idpBaseUrl ?? DEFAULTS.idpBaseUrl);
   const apiBaseUrl = strip(config.apiBaseUrl ?? DEFAULTS.apiBaseUrl);
   const fedcmBaseUrl = strip(config.fedcmBaseUrl ?? DEFAULTS.fedcmBaseUrl);
+  const allowedApiOrigins = (config.allowedApiOrigins ?? []).map((entry) => {
+    try {
+      return new URL(entry).origin;
+    } catch {
+      throw new AuthError(
+        "INVALID_CONFIG",
+        `allowedApiOrigins entry is not a valid absolute URL: ${entry}`,
+      );
+    }
+  });
   const redirectUri =
     config.redirectUri ??
     (typeof window !== "undefined"
@@ -36,7 +46,7 @@ export function resolveConfig(config: AuthConfig): ResolvedConfig {
     clientId: config.clientId,
     idpBaseUrl,
     apiBaseUrl,
-    allowedApiOrigins: (config.allowedApiOrigins ?? []).map(strip),
+    allowedApiOrigins,
     redirectUri,
     logoutRedirectUri,
     scopes: config.scopes ?? [...DEFAULTS.scopes],

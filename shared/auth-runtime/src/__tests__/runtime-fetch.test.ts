@@ -30,6 +30,30 @@ describe("resolveApiUrl", () => {
       resolveApiUrl(resolveConfig(base), "https://evil.example/x"),
     ).toThrow(AuthError);
   });
+  it("normalizes an allowedApiOrigins entry given with a path to its bare origin", () => {
+    const cfg = resolveConfig({
+      ...base,
+      allowedApiOrigins: ["https://api.stawi.org/identity"],
+    });
+    expect(cfg.allowedApiOrigins).toEqual(["https://api.stawi.org"]);
+    expect(resolveApiUrl(cfg, "https://api.stawi.org/identity/x")).toBe(
+      "https://api.stawi.org/identity/x",
+    );
+  });
+  it("normalizes an allowedApiOrigins entry with an uppercase host to match", () => {
+    const cfg = resolveConfig({
+      ...base,
+      allowedApiOrigins: ["https://API.stawi.org"],
+    });
+    expect(resolveApiUrl(cfg, "https://api.stawi.org/x")).toBe(
+      "https://api.stawi.org/x",
+    );
+  });
+  it("throws INVALID_CONFIG at resolveConfig time for an invalid allowedApiOrigins entry", () => {
+    expect(() =>
+      resolveConfig({ ...base, allowedApiOrigins: ["not-a-url"] }),
+    ).toThrow(AuthError);
+  });
 });
 
 // Module-level mock of the worker core so runtime.fetch's parse() logic can
