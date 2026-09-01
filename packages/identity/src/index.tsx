@@ -10,6 +10,12 @@ export type {
   AccessRoleAssignmentQuery,
 } from "./services/identity-client.js";
 export { decodeConnectStream } from "./services/connect-stream.js";
+export { createProfileResolver } from "./services/profile-resolver.js";
+export type {
+  ProfileResolver,
+  ProfileResolverDeps,
+  ProfileSummary,
+} from "./services/profile-resolver.js";
 export { IdentityError } from "./services/errors.js";
 export {
   generalVocabulary,

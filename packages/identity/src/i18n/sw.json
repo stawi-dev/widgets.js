@@ -1,0 +1,19 @@
+{
+  "auth.login": "Ingia",
+  "common.retry": "Jaribu tena",
+  "common.cancel": "Ghairi",
+  "field.required": "Inahitajika",
+  "org.title": "Shirika",
+  "org.loading": "Inapakia mashirika",
+  "org.loadFailed": "Imeshindwa kupakia mashirika",
+  "org.pick": "Chagua shirika",
+  "org.none": "Hakuna mashirika bado",
+  "org.createTitle": "Sajili shirika",
+  "org.create": "Sajili shirika",
+  "org.creating": "Inasajili...",
+  "org.field.name": "Jina",
+  "org.field.code": "Msimbo",
+  "org.field.type": "Aina",
+  "org.field.geoId": "Kitambulisho cha eneo",
+  "org.field.domain": "Kikoa"
+}

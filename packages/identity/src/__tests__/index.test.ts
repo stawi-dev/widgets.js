@@ -6,6 +6,7 @@ describe("package entry points", () => {
   it("exports the data layer", () => {
     expect(typeof identity.createIdentityClient).toBe("function");
     expect(typeof identity.decodeConnectStream).toBe("function");
+    expect(typeof identity.createProfileResolver).toBe("function");
     expect(new identity.IdentityError("x", "y")).toBeInstanceOf(Error);
   });
 
