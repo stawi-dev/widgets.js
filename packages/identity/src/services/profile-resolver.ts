@@ -77,9 +77,11 @@ function toSummary(payload: ProfilePayload): ProfileSummary {
  * Name resolution for identity screens, which store profile ids only.
  *
  * Lookups are cached (LRU, 500 entries) and fetched at most four at a time.
- * A permission failure disables the resolver for the session: the screens
- * fall back to showing the raw profile id rather than retrying on every
- * render for a caller that is never going to be allowed to read profiles.
+ * A permission failure disables the resolver for the session: it stops
+ * issuing requests for a caller that is never going to be allowed to read
+ * profiles, and the screens fall back to showing the raw profile id. What
+ * it already knows is kept — a disabled resolver still answers from cache,
+ * including for the very batch that tripped the failure.
  */
 export function createProfileResolver(
   deps: ProfileResolverDeps,
@@ -146,7 +148,6 @@ export function createProfileResolver(
   return {
     async resolve(ids) {
       const out = new Map<string, ProfileSummary>();
-      if (disabled) return out;
 
       const missing: string[] = [];
       for (const id of new Set(ids.filter((id) => id))) {
@@ -154,7 +155,8 @@ export function createProfileResolver(
         if (hit) out.set(id, hit);
         else missing.push(id);
       }
-      if (missing.length === 0) return out;
+      // Once disabled we answer from cache only, and never hit the network.
+      if (disabled || missing.length === 0) return out;
 
       await pool(missing, async (id) => {
         if (disabled) return;
@@ -173,7 +175,7 @@ export function createProfileResolver(
         }
       });
 
-      return disabled ? new Map<string, ProfileSummary>() : out;
+      return out;
     },
 
     async byContact(contact) {

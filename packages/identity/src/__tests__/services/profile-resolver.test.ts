@@ -97,6 +97,37 @@ describe("createProfileResolver", () => {
     expect(peak).toBe(4);
   });
 
+  it("keeps what it already knows when a permission failure disables it", async () => {
+    const fetch = vi.fn(async (_url: string, init: unknown) => {
+      const id = bodyId(init);
+      if (id === "denied") {
+        throw Object.assign(new Error("API 403: forbidden"), {
+          code: "API_FORBIDDEN",
+        });
+      }
+      return profileBody(id, `Name ${id}`);
+    });
+    const resolver = createProfileResolver({
+      runtime: { fetch } as never,
+      profileApiBaseUrl: BASE,
+    });
+
+    await resolver.resolve(["cached"]);
+
+    // The batch that trips the failure still returns the cache hits it had.
+    const mixed = await resolver.resolve(["cached", "denied"]);
+    expect(mixed.get("cached")?.name).toBe("Name cached");
+    expect(mixed.has("denied")).toBe(false);
+
+    // Disabled: cache hits only, and not one more request.
+    const calls = fetch.mock.calls.length;
+    const later = await resolver.resolve(["cached", "other"]);
+    expect(later.get("cached")?.name).toBe("Name cached");
+    expect(later.has("other")).toBe(false);
+    expect(await resolver.byContact("cached@example.test")).toBeNull();
+    expect(fetch.mock.calls.length).toBe(calls);
+  });
+
   it("disables itself after a permission failure and never retries", async () => {
     const fetch = vi.fn(async () => {
       throw Object.assign(new Error("API 403: forbidden"), {
