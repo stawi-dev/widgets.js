@@ -57,9 +57,6 @@ importers:
         specifier: workspace:*
         version: link:../../shared/auth-runtime
     devDependencies:
-      '@axe-core/react':
-        specifier: ^4.11.2
-        version: 4.11.2
       '@testing-library/jest-dom':
         specifier: ^6.0.0
         version: 6.9.1
