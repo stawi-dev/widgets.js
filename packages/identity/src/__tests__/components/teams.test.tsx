@@ -481,6 +481,62 @@ describe("TeamDetail", () => {
     expect(screen.getByText("Ada Lovelace")).toBeTruthy();
   });
 
+  it("starts fresh when another team is selected", async () => {
+    const teamB = team({ id: "t2", name: "Support West", code: "SPW" });
+    renderTeams(
+      detailClient({
+        internalTeamSearch: vi.fn().mockResolvedValue([team(), teamB]),
+        teamMembershipSearch: vi.fn(({ teamId }) =>
+          Promise.resolve(teamId === "t1" ? [membership()] : []),
+        ),
+        teamMembershipSave: vi.fn().mockRejectedValue(new Error("forbidden")),
+      }),
+      makeResolver([{ id: "p1", name: "Ada Lovelace" }]),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sales East" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "forbidden",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Support West" }));
+
+    expect(await screen.findByText("No members in this team yet")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the add action shut until the members have loaded", async () => {
+    let release: (members: WorkforceMember[]) => void = () => {};
+    const pending = new Promise<WorkforceMember[]>((resolve) => {
+      release = resolve;
+    });
+    renderTeams(
+      detailClient({ workforceMemberSearch: vi.fn().mockReturnValue(pending) }),
+      makeResolver([{ id: "p1", name: "Ada Lovelace" }]),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sales East" }));
+    const add = await screen.findByRole("button", { name: "Add member" });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      release([member(), member({ id: "m2", profileId: "p2" })]);
+      await pending;
+    });
+
+    await waitFor(() =>
+      expect((add as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(add);
+
+    const select = (await screen.findByLabelText(
+      "Member",
+    )) as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(["m2"]);
+    expect(select.value).toBe("m2");
+  });
+
   it("surfaces a membership load failure", async () => {
     await selectTeam(
       detailClient({

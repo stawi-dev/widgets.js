@@ -175,7 +175,9 @@ export function TeamsView() {
 
           <div className="aiw-teams-detail">
             {selected ? (
-              <TeamDetail team={selected} onEdit={openEdit} />
+              // Keyed so switching teams starts the panel (and its
+              // error, toggle and dialog state) from scratch.
+              <TeamDetail key={selected.id} team={selected} onEdit={openEdit} />
             ) : (
               <EmptyState title={t("teams.noneSelected")} />
             )}

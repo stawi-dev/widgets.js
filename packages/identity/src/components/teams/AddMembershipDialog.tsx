@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useIdentity } from "../../context/identity-context.js";
 import { HooksContext } from "../../context/hooks-context.js";
 import { useT } from "../../hooks/use-t.js";
@@ -46,6 +46,17 @@ export function AddMembershipDialog({
   );
   const [isPrimaryTeam, setIsPrimaryTeam] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Candidates and vocabulary can arrive after mount, so seed the empty
+  // selects from them rather than leaving the form with no value to post.
+  const firstCandidateId = candidates[0]?.id ?? "";
+  const firstRole = vocabulary.membershipRoles[0]?.value ?? "";
+  useEffect(() => {
+    if (!memberId && firstCandidateId) setMemberId(firstCandidateId);
+  }, [memberId, firstCandidateId]);
+  useEffect(() => {
+    if (!membershipRole && firstRole) setMembershipRole(firstRole);
+  }, [membershipRole, firstRole]);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = useCallback(

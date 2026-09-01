@@ -105,11 +105,17 @@ export function TeamDetail({ team, onEdit }: TeamDetailProps) {
     reload();
   }, [reload]);
 
+  // The add dialog picks from the org's members, so it stays shut until
+  // they are loaded — otherwise it would claim the team already has everyone.
+  const membersLoading = members.loading;
+
   function addButton(labelKey: string) {
     return (
       <button
         type="button"
         className="aiw-button-primary"
+        disabled={membersLoading}
+        aria-busy={membersLoading || undefined}
         onClick={() => setDialogOpen(true)}
       >
         {t(labelKey)}
