@@ -6,10 +6,15 @@ import { useT } from "../../hooks/use-t.js";
 import { EmptyState } from "../EmptyState.js";
 import { LoadingRows } from "../LoadingRows.js";
 import { RegisterMemberDialog } from "../members/RegisterMemberDialog.js";
+import { GrantIssuesAlert } from "../members/GrantIssuesAlert.js";
 import { MemberList, memberName } from "./MemberList.js";
 import { NamespacePanel } from "./NamespacePanel.js";
 import { fetchAllPages } from "../../services/fetch-all.js";
-import { applyGrants } from "../../services/grant-applier.js";
+import {
+  applyGrants,
+  retryGrantIssues,
+  type GrantIssue,
+} from "../../services/grant-applier.js";
 import { bundleFor } from "../../permissions/model.js";
 import type {
   AccessBundle,
@@ -139,6 +144,11 @@ export function PermissionsView() {
   const [error, setError] = useState<string | null>(null);
   /** Members rewritten by this screen, keyed by member id. */
   const [edited, setEdited] = useState<Record<string, WorkforceMember>>({});
+  /** Writes the member dialog could not land, with the member they belong to. */
+  const [grantIssues, setGrantIssues] = useState<{
+    member: WorkforceMember;
+    issues: GrantIssue[];
+  } | null>(null);
 
   const organizationId = organization?.id ?? "";
 
@@ -202,6 +212,7 @@ export function PermissionsView() {
       writes: () => Promise<void>,
     ) => {
       setError(null);
+      setGrantIssues(null);
       setBusy(true);
       setEdited((prev) => ({
         ...prev,
@@ -282,16 +293,34 @@ export function PermissionsView() {
 
   const reload = members.reload;
 
-  /** Shows the new bundle at once, and refreshes the list behind it. */
+  /**
+   * Shows the new bundle at once and refreshes the list behind it. Grants
+   * the dialog could not apply are reported here, with a retry, rather than
+   * left to be discovered later.
+   */
   const handleSaved = useCallback(
-    ({ member }: { member: WorkforceMember }) => {
+    ({ member, issues }: { member: WorkforceMember; issues: GrantIssue[] }) => {
       setDialogOpen(false);
       const id = selected?.id;
       if (id) setEdited((prev) => ({ ...prev, [id]: { ...member, id } }));
+      setGrantIssues(issues.length > 0 ? { member, issues } : null);
       reload();
     },
     [reload, selected],
   );
+
+  /** Re-applies only the failed writes, leaving the record as it is. */
+  const retryGrants = useCallback(async () => {
+    if (!grantIssues) return;
+    const { member } = grantIssues;
+    const issues = await retryGrantIssues(
+      tenancy,
+      member.profileId,
+      grantIssues.issues,
+    );
+    setGrantIssues(issues.length > 0 ? { member, issues } : null);
+    if (issues.length === 0) onMemberChange?.({ member, change: "grants" });
+  }, [grantIssues, onMemberChange, tenancy]);
 
   if (!permissionModel) return null;
 
@@ -353,6 +382,13 @@ export function PermissionsView() {
         <div role="alert" className="aiw-error">
           {`${t("permissions.writeFailed")}: ${error}`}
         </div>
+      )}
+
+      {grantIssues && (
+        <GrantIssuesAlert
+          issues={grantIssues.issues}
+          onRetry={() => void retryGrants()}
+        />
       )}
 
       <div className="aiw-perm-layout">

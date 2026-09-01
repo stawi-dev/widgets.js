@@ -121,7 +121,7 @@ export function NamespacePanel({
 
       {groups.map((group) => (
         <div key={group.prefix} className="aiw-perm-group">
-          <h4 className="aiw-perm-group-title">{group.label}</h4>
+          <h3 className="aiw-perm-group-title">{group.label}</h3>
           {group.rows.map((row) => (
             <PermissionRow
               key={row.permission}

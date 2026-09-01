@@ -14,9 +14,11 @@ import { EmptyState } from "../EmptyState.js";
 import { LoadingRows } from "../LoadingRows.js";
 import { MembersTable } from "./MembersTable.js";
 import { RegisterMemberDialog } from "./RegisterMemberDialog.js";
+import { GrantIssuesAlert } from "./GrantIssuesAlert.js";
 import {
   applyGrantPlans,
   nonEmptyPlans,
+  retryGrantIssues,
   type GrantIssue,
   type GrantPlan,
 } from "../../services/grant-applier.js";
@@ -165,21 +167,14 @@ export function MembersView() {
   /** Re-applies only the writes that failed, keeping the record as it is. */
   const retryGrants = useCallback(async () => {
     if (!grantIssues) return;
-    const byNamespace = new Map<string, GrantPlan>();
-    for (const issue of grantIssues.issues) {
-      const plan = byNamespace.get(issue.namespace) ?? {
-        namespace: issue.namespace,
-        diff: { grant: [], revoke: [] },
-      };
-      plan.diff[issue.op].push(issue.permission);
-      byNamespace.set(issue.namespace, plan);
-    }
     const { member } = grantIssues;
-    // `applyGrantPlans` collects failures rather than throwing, so there is
+    // `retryGrantIssues` collects failures rather than throwing, so there is
     // nothing to catch here.
-    const issues = await applyGrantPlans(tenancy, member.profileId, [
-      ...byNamespace.values(),
-    ]);
+    const issues = await retryGrantIssues(
+      tenancy,
+      member.profileId,
+      grantIssues.issues,
+    );
     setGrantIssues(issues.length > 0 ? { member, issues } : null);
     if (issues.length === 0) onMemberChange?.({ member, change: "grants" });
   }, [grantIssues, onMemberChange, tenancy]);
@@ -245,23 +240,10 @@ export function MembersView() {
       )}
 
       {grantIssues && (
-        <div role="alert" className="aiw-error aiw-grant-issues">
-          <p>{t("members.grantsFailed")}</p>
-          <ul>
-            {grantIssues.issues.map((issue) => (
-              <li key={`${issue.namespace}:${issue.op}:${issue.permission}`}>
-                {`${issue.permission}: ${issue.error}`}
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className="aiw-button"
-            onClick={() => void retryGrants()}
-          >
-            {t("members.retryGrants")}
-          </button>
-        </div>
+        <GrantIssuesAlert
+          issues={grantIssues.issues}
+          onRetry={() => void retryGrants()}
+        />
       )}
 
       {members.error ? (

@@ -82,3 +82,25 @@ export function nonEmptyPlans(plans: GrantPlan[]): GrantPlan[] {
     (p) => p.diff.grant.length > 0 || p.diff.revoke.length > 0,
   );
 }
+
+/**
+ * Re-applies only the writes that failed, grouped back into one plan per
+ * namespace, and returns whatever failed again. The member's record is not
+ * touched: it already says what the grants should be.
+ */
+export async function retryGrantIssues(
+  tenancy: TenancyClient,
+  profileId: string,
+  issues: GrantIssue[],
+): Promise<GrantIssue[]> {
+  const byNamespace = new Map<string, GrantPlan>();
+  for (const issue of issues) {
+    const plan = byNamespace.get(issue.namespace) ?? {
+      namespace: issue.namespace,
+      diff: { grant: [], revoke: [] },
+    };
+    plan.diff[issue.op].push(issue.permission);
+    byNamespace.set(issue.namespace, plan);
+  }
+  return applyGrantPlans(tenancy, profileId, [...byNamespace.values()]);
+}

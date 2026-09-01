@@ -7,12 +7,52 @@ import {
   useIdentity,
 } from "../../context/identity-context.js";
 import { MembersView } from "../../components/members/MembersView.js";
+import { PermissionsView } from "../../components/permissions/PermissionsView.js";
 import type { IdentityClient } from "../../services/identity-client.js";
 import type {
   ProfileResolver,
   ProfileSummary,
 } from "../../services/profile-resolver.js";
+import type { PermissionModel } from "../../permissions/types.js";
+import type {
+  ServiceNamespace,
+  TenancyClient,
+} from "../../services/tenancy-client.js";
 import type { Organization, OrgUnit, WorkforceMember } from "../../types.js";
+
+const NS = "service_imports";
+
+const MODEL: PermissionModel = {
+  namespaces: [
+    {
+      namespace: NS,
+      label: "Imports",
+      groups: { quotes: "Quotations" },
+      bundles: [
+        {
+          key: "sales",
+          label: "Sales",
+          platformRole: "member",
+          permissions: ["quotes_view", "quotes_create"],
+        },
+      ],
+    },
+  ],
+};
+
+const CATALOGUE: ServiceNamespace[] = [
+  {
+    namespace: NS,
+    permissions: ["quotes_view", "quotes_create", "team_manage"],
+    roleBindings: { admin: { permissions: ["team_manage"] } },
+  },
+];
+
+const tenancy: TenancyClient = {
+  listServiceNamespaces: vi.fn().mockResolvedValue(CATALOGUE),
+  grantPermission: vi.fn().mockResolvedValue(undefined),
+  revokePermission: vi.fn().mockResolvedValue(undefined),
+};
 
 const ORG: Organization = { id: "o1", name: "Acme", code: "ACME" };
 
@@ -97,6 +137,7 @@ const RULES = [
   "duplicate-id-aria",
   "empty-table-header",
   "form-field-multiple-labels",
+  "heading-order",
   "label",
   "link-name",
   "select-name",
@@ -152,6 +193,28 @@ describe("Members view a11y (axe)", () => {
     await screen.findByText("Jane Doe");
     fireEvent.click(screen.getByRole("button", { name: "Register member" }));
     await screen.findByRole("dialog");
+
+    const result = await runAxe(container);
+    expect(result.violations).toEqual([]);
+  });
+});
+
+describe("Permissions view a11y (axe)", () => {
+  it("has no violations with a member selected", async () => {
+    const { container } = render(
+      <IdentityProvider
+        client={client}
+        tenancy={tenancy}
+        permissionModel={MODEL}
+        profileResolver={resolver}
+      >
+        <SelectOrg>
+          <PermissionsView />
+        </SelectOrg>
+      </IdentityProvider>,
+    );
+
+    await screen.findByLabelText("Quotes View");
 
     const result = await runAxe(container);
     expect(result.violations).toEqual([]);

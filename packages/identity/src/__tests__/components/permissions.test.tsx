@@ -386,6 +386,44 @@ describe("permissions screen", () => {
     expect(within(rowFor("Quotes Create")).getByText("Bundle")).toBeTruthy();
   });
 
+  it("reports and retries grants the bundle change could not apply", async () => {
+    const grant = vi.fn(async (p: { permission: string }) => {
+      if (p.permission === "quotes_create") throw new Error("keto down");
+    });
+    const changes: MemberChangeEvent[] = [];
+    renderPermissions({
+      tenancy: makeTenancy({ grantPermission: grant }),
+      onMemberChange: (e) => changes.push(e),
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Change bundle" }),
+    );
+    fireEvent.change(await screen.findByLabelText(/Access bundle/), {
+      target: { value: "sales" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText(/quotes_create: keto down/)).toBeTruthy();
+    expect(
+      screen.getByText("Some permissions couldn't be applied"),
+    ).toBeTruthy();
+
+    grant.mockResolvedValue(undefined);
+    grant.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Retry grants" }));
+
+    await waitFor(() => expect(grant).toHaveBeenCalledTimes(1));
+    // Only the write that failed is repeated.
+    expect(grant).toHaveBeenCalledWith({
+      namespace: NS,
+      permission: "quotes_create",
+      profileId: "p1",
+    });
+    await waitFor(() => expect(screen.queryByText(/keto down/)).toBeNull());
+    expect(changes.map((c) => c.change)).toEqual(["updated", "grants"]);
+  });
+
   it("filters the member list by the search box", async () => {
     renderPermissions({
       client: makeClient({
