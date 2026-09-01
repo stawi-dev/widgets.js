@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createIdentityClient } from "../../services/identity-client.js";
 import { IdentityError } from "../../services/errors.js";
+import { decodeConnectStream } from "../../services/connect-stream.js";
 import { concat, envelope } from "./envelope-fixture.js";
 
 type Call = [string, any];
@@ -74,10 +75,19 @@ describe("createIdentityClient", () => {
       "https://api.stawi.org/identity/identity.v1.IdentityService/InternalTeamSearch",
     );
     expect(calls[0][1].responseType).toBe("arraybuffer");
-    expect(JSON.parse(calls[0][1].body)).toEqual({
-      organizationId: "org1",
-      cursor: { limit: 50 },
-    });
+    // Streaming RPCs must speak the Connect streaming protocol: connect-go
+    // answers a plain `application/json` POST with HTTP 415.
+    expect(calls[0][1].headers["Content-Type"]).toBe(
+      "application/connect+json",
+    );
+    expect(calls[0][1].headers["Accept"]).toBe("application/connect+json");
+    expect(calls[0][1].headers["Connect-Protocol-Version"]).toBe("1");
+    // The body is one Connect envelope, not raw JSON — it round-trips
+    // through the decoder back to the request object.
+    expect(calls[0][1].body).toBeInstanceOf(ArrayBuffer);
+    expect(decodeConnectStream(calls[0][1].body)).toEqual([
+      { organizationId: "org1", cursor: { limit: 50 } },
+    ]);
   });
 
   it("tolerates a single object in a stream data envelope", async () => {

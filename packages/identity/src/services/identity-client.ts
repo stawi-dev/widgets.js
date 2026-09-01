@@ -1,5 +1,8 @@
 import type { AuthRuntime } from "@stawi/auth-runtime";
-import { decodeConnectStream } from "./connect-stream.js";
+import {
+  decodeConnectStream,
+  encodeConnectEnvelope,
+} from "./connect-stream.js";
 import { fromConnectError, identityError, toIdentityError } from "./errors.js";
 import type {
   AccessRoleAssignment,
@@ -103,6 +106,19 @@ export function createIdentityClient(deps: IdentityClientDeps): IdentityClient {
     };
   }
 
+  /**
+   * Server-streaming RPCs speak the Connect streaming protocol, not the
+   * unary JSON one: connect-go answers a plain `application/json` POST with
+   * HTTP 415, and reads the request body as a single envelope.
+   */
+  function streamHeaders(): Record<string, string> {
+    return {
+      "Content-Type": "application/connect+json",
+      Accept: "application/connect+json",
+      "Connect-Protocol-Version": "1",
+    };
+  }
+
   async function unary<T>(rpc: string, body: unknown): Promise<T> {
     // A non-2xx response reaches us as an AuthError whose message embeds
     // the Connect error body; `toIdentityError` recovers the real code.
@@ -127,8 +143,8 @@ export function createIdentityClient(deps: IdentityClientDeps): IdentityClient {
     const buf = await deps.runtime
       .fetch<ArrayBuffer>(url(rpc), {
         method: "POST",
-        headers: headers(),
-        body: JSON.stringify(body),
+        headers: streamHeaders(),
+        body: encodeConnectEnvelope(JSON.stringify(body)),
         responseType: "arraybuffer",
       })
       .catch((err: unknown) => {

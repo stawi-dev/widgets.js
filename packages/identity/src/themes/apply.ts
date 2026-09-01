@@ -1,3 +1,5 @@
+import type { IdentityWidgetThemedTokens } from "./types.js";
+
 const SIZE_RE = /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$|^calc\(.+\)$/;
 
 /**
@@ -87,4 +89,43 @@ export function tokenDeclarations(tokens: Record<string, unknown>): string {
     if (safe !== null) out.push(`${MAP[key]!}: ${safe};`);
   }
   return out.join("");
+}
+
+/** Renders a `selector{...}` block, or "" when no token survives validation. */
+function block(selector: string, tokens: Record<string, unknown>): string {
+  const decls = tokenDeclarations(tokens);
+  return decls ? `${selector}{${decls}}` : "";
+}
+
+/** The four selector slots a themed token sheet writes into. */
+export type TokenScope = "base" | "dark" | "light" | "auto";
+
+/**
+ * Renders a themed token object as stylesheet text. `selector` maps each
+ * scope to the selector that build uses — `:host(...)` in the shadow build,
+ * an instance attribute in the light-DOM one — so both paths share this
+ * (and therefore share `tokenDeclarations`' validation).
+ *
+ * `auto` follows the OS, so each themed block is emitted twice: once for the
+ * explicit `data-theme` choice, once behind the matching media query.
+ */
+export function themedTokenSheet(
+  tokens: IdentityWidgetThemedTokens,
+  selector: (scope: TokenScope) => string,
+): string {
+  const { dark, light, ...base } = tokens;
+  const parts: string[] = [
+    block(selector("base"), base as Record<string, unknown>),
+  ];
+  for (const [scope, overrides] of [
+    ["dark", dark],
+    ["light", light],
+  ] as const) {
+    if (!overrides) continue;
+    const values = overrides as Record<string, unknown>;
+    parts.push(block(selector(scope), values));
+    const inner = block(selector("auto"), values);
+    if (inner) parts.push(`@media (prefers-color-scheme: ${scope}){${inner}}`);
+  }
+  return parts.filter(Boolean).join("");
 }

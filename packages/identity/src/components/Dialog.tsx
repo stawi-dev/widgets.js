@@ -45,7 +45,7 @@ export function Dialog({ open, title, onClose, children }: DialogProps) {
           <button
             type="button"
             className="aiw-dialog-close"
-            aria-label={t("common.cancel")}
+            aria-label={t("common.close")}
             onClick={onClose}
           >
             &times;

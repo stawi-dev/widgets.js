@@ -43,6 +43,7 @@ tag's `data-*` attributes and also publishes `window.StawiIdentity`:
 | `data-vocabulary`                |          | A preset name (`general`, `fintech`, `commerce`, `manufacturing`) **or** a JSON object merged over `general` |
 | `data-features`                  |          | JSON, e.g. `{"orgUnits":true,"platformRoles":false}`                                                         |
 | `data-tokens`                    |          | JSON design tokens (see [Theming](#theming))                                                                 |
+| `data-css`                       |          | Raw CSS appended after the widget stylesheet and the tokens                                                  |
 | `data-theme`                     |          | `light`, `dark` or `auto` (default)                                                                          |
 | `data-locale`                    |          | BCP-47 locale; `en` and `sw` ship                                                                            |
 | `data-initial-view`              |          | `members`, `teams`, `roles` or `units`                                                                       |
@@ -114,6 +115,10 @@ Pass your own selector if you scope the widget further, e.g.
 `widgetStylesFor("#admin .aiw-root")`. The shadow-DOM build used by
 `mount()` is exported as `widgetStyles`; it puts the tokens on `:host` and
 is not usable in the light DOM.
+
+`tokens` and `css` work on this path too: the root renders its own `<style>`
+element scoped to that instance (`[data-aiw-instance="…"]`), so two widgets
+on one page can carry different themes and neither leaks onto your page.
 
 ### Props
 
@@ -244,8 +249,9 @@ createAuthRuntime({
 });
 ```
 
-Without it the runtime refuses to attach the access token and every
-request fails as unauthenticated.
+Without it the runtime never issues the request at all: `runtime.fetch`
+throws `AuthError("INVALID_CONFIG")` before anything reaches the network,
+which surfaces as a load failure on every screen.
 
 ## Accessibility and i18n
 

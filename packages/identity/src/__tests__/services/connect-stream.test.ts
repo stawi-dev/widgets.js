@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { decodeConnectStream } from "../../services/connect-stream.js";
+import {
+  decodeConnectStream,
+  encodeConnectEnvelope,
+} from "../../services/connect-stream.js";
 import { IdentityError } from "../../services/errors.js";
 import { concat, envelope } from "./envelope-fixture.js";
 
@@ -75,5 +78,26 @@ describe("decodeConnectStream", () => {
     expect(() => decodeConnectStream(concat(envelope(0, "not-json")))).toThrow(
       /invalid/i,
     );
+  });
+});
+
+describe("encodeConnectEnvelope", () => {
+  it("wraps JSON in one uncompressed, non-trailer envelope", () => {
+    const buf = encodeConnectEnvelope('{"cursor":{"limit":1}}');
+    const bytes = new Uint8Array(buf);
+
+    expect(bytes[0]).toBe(0);
+    expect(new DataView(buf).getUint32(1)).toBe(bytes.length - 5);
+    expect(decodeConnectStream(buf)).toEqual([{ cursor: { limit: 1 } }]);
+  });
+
+  it("counts UTF-8 bytes, not characters, in the length prefix", () => {
+    const json = JSON.stringify({ query: "Wanachama wa shirika ☂" });
+    const buf = encodeConnectEnvelope(json);
+
+    expect(new DataView(buf).getUint32(1)).toBe(
+      new TextEncoder().encode(json).length,
+    );
+    expect(decodeConnectStream(buf)).toEqual([JSON.parse(json)]);
   });
 });

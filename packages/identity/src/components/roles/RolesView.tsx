@@ -9,6 +9,7 @@ import {
 import { useIdentity } from "../../context/identity-context.js";
 import { HooksContext } from "../../context/hooks-context.js";
 import { useAsync } from "../../hooks/use-async.js";
+import { fetchAllPages } from "../../services/fetch-all.js";
 import { useT } from "../../hooks/use-t.js";
 import { EmptyState } from "../EmptyState.js";
 import { LoadingRows } from "../LoadingRows.js";
@@ -49,18 +50,24 @@ export function RolesView() {
   // The roster is fetched unfiltered: the matrix always shows the whole
   // picture, and the role-key/scope-type filters narrow only the table below
   // it, so filtering never makes the counts look like grants disappeared.
+  //
+  // Both of these are paged to the end: the matrix intersects assignments
+  // with this organization's members, so a single page of either would
+  // silently under-report every count.
   const assignments = useAsync(
     () =>
-      client.accessRoleAssignmentSearch({ cursor: { limit: SEARCH_LIMIT } }),
+      fetchAllPages((cursor) => client.accessRoleAssignmentSearch({ cursor }), {
+        limit: SEARCH_LIMIT,
+      }),
     [client],
   );
 
   const members = useAsync(
     () =>
-      client.workforceMemberSearch({
-        organizationId,
-        cursor: { limit: SEARCH_LIMIT },
-      }),
+      fetchAllPages(
+        (cursor) => client.workforceMemberSearch({ organizationId, cursor }),
+        { limit: SEARCH_LIMIT },
+      ),
     [client, organizationId],
   );
 
@@ -84,7 +91,10 @@ export function RolesView() {
     [client, organizationId, orgUnits],
   );
 
-  const memberList = useMemo(() => members.data ?? [], [members.data]);
+  const memberList = useMemo(() => members.data?.items ?? [], [members.data]);
+  const truncated = Boolean(
+    assignments.data?.truncated || members.data?.truncated,
+  );
   const profileIds = memberList.map((m) => m.profileId).join(",");
 
   const profiles = useAsync(
@@ -116,7 +126,7 @@ export function RolesView() {
   // belonging to this organization's members are ours to show.
   const ours = useMemo(() => {
     const ids = new Set(memberList.map((m) => m.id));
-    return (assignments.data ?? []).filter((a) => ids.has(a.memberId));
+    return (assignments.data?.items ?? []).filter((a) => ids.has(a.memberId));
   }, [assignments.data, memberList]);
 
   const filtered = Boolean(roleKeyFilter || scopeTypeFilter);
@@ -278,6 +288,14 @@ export function RolesView() {
         <LoadingRows label={t("roles.loading")} />
       ) : (
         <div className="aiw-roles-layout">
+          {truncated && (
+            <div role="status" className="aiw-notice">
+              {t("roles.truncated", {
+                count: String(assignments.data?.items.length ?? 0),
+              })}
+            </div>
+          )}
+
           <RoleMatrix rows={matrixRows} />
 
           {visible.length === 0 ? (

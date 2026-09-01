@@ -660,6 +660,20 @@ const BASE_RULES = `
   padding: 8px 10px;
 }
 
+.aiw-notice {
+  background: var(--aiw-muted);
+  border-inline-start: 3px solid var(--aiw-text-secondary);
+  border-radius: var(--aiw-radius-sm);
+  color: var(--aiw-text-secondary);
+  font-size: 0.9em;
+  padding: 8px 10px;
+}
+
+/* The notice is a full-width banner inside the two-column roles grid. */
+.aiw-roles-layout > .aiw-notice {
+  grid-column: 1 / -1;
+}
+
 .aiw-visually-hidden {
   border: 0;
   clip: rect(0 0 0 0);

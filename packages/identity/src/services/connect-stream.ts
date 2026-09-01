@@ -85,3 +85,17 @@ function describe(error: unknown): string | undefined {
   const message = (error as { message?: unknown }).message;
   return typeof message === "string" ? message : undefined;
 }
+
+/**
+ * Wraps a JSON request body in a single Connect envelope, which is what a
+ * server-streaming RPC expects as its request payload: one flag byte (0 —
+ * uncompressed, not a trailer), a 4-byte big-endian payload length, then
+ * the UTF-8 JSON itself. A raw JSON body is rejected with HTTP 415.
+ */
+export function encodeConnectEnvelope(json: string): ArrayBuffer {
+  const payload = new TextEncoder().encode(json);
+  const out = new Uint8Array(HEADER_BYTES + payload.length);
+  new DataView(out.buffer).setUint32(1, payload.length);
+  out.set(payload, HEADER_BYTES);
+  return out.buffer;
+}

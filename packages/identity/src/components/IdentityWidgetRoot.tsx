@@ -13,6 +13,7 @@ import { MembersView } from "./members/MembersView.js";
 import { TeamsView } from "./teams/TeamsView.js";
 import { RolesView } from "./roles/RolesView.js";
 import { UnitsView } from "./units/UnitsView.js";
+import { themedTokenSheet } from "../themes/apply.js";
 import type { IdentityView, IdentityWidgetProps } from "../types.js";
 
 /**
@@ -44,6 +45,8 @@ export function IdentityWidgetRoot(props: IdentityWidgetProps) {
     logoutRedirectUri,
     runtime,
     theme,
+    tokens,
+    css,
     locale,
     onError,
     onAuthStateChange,
@@ -60,12 +63,34 @@ export function IdentityWidgetRoot(props: IdentityWidgetProps) {
     [onError, onAuthStateChange, onMetric, locale],
   );
 
+  // One instance attribute per mounted root, so a host's tokens style only
+  // this widget even with several on the page. `useId` returns colons, which
+  // are legal inside a quoted attribute selector but not worth relying on.
+  const instance = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
+  const styleText = useMemo(() => {
+    const scope = `[data-aiw-instance="${instance}"]`;
+    const tokenCss = tokens
+      ? themedTokenSheet(tokens, (s) =>
+          s === "base" ? scope : `${scope}[data-theme="${s}"]`,
+        )
+      : "";
+    // The host's raw `css` goes last so it wins over both the base
+    // stylesheet and the token block.
+    return `${tokenCss}${css ?? ""}`;
+  }, [instance, tokens, css]);
+
   return (
     // The root element owns the design tokens: `:host` supplies them in the
     // shadow build, this element in the light-DOM build (see
     // `widgetStylesFor`). It is rendered in both so the class and the
     // `data-theme` hook are always where a host expects them.
-    <div className="aiw-root" data-theme={theme ?? "auto"}>
+    <div
+      className="aiw-root"
+      data-theme={theme ?? "auto"}
+      data-aiw-instance={instance}
+    >
+      {styleText ? <style>{styleText}</style> : null}
       <ErrorBoundary onError={onError}>
         <HooksContext.Provider value={hooks}>
           <AuthProvider

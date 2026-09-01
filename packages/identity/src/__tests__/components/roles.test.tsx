@@ -157,12 +157,47 @@ describe("RolesView", () => {
     expect(table.getByText("Administrator")).toBeTruthy();
     expect(table.getByText("Organization · Acme")).toBeTruthy();
     expect(client.accessRoleAssignmentSearch).toHaveBeenCalledWith({
-      cursor: { limit: 50 },
+      cursor: { limit: 50, page: "0" },
     });
     expect(client.workforceMemberSearch).toHaveBeenCalledWith({
       organizationId: "o1",
-      cursor: { limit: 50 },
+      cursor: { limit: 50, page: "0" },
     });
+  });
+
+  it("pages through every assignment rather than showing the first page", async () => {
+    const search = vi.fn(async ({ cursor }: { cursor?: { page?: string } }) =>
+      cursor?.page === "0"
+        ? Array.from({ length: 50 }, (_, i) =>
+            assignment({ id: `a${i}`, roleKey: "identity_administrator" }),
+          )
+        : [assignment({ id: "late", roleKey: "approval_approver" })],
+    );
+    renderRoles(makeClient({ accessRoleAssignmentSearch: search }));
+
+    const table = await assignmentsTable();
+    // 51 assignments + the header row; the second page is not dropped.
+    await waitFor(() => expect(table.getAllByRole("row")).toHaveLength(52));
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(search).toHaveBeenLastCalledWith({
+      cursor: { limit: 50, page: "50" },
+    });
+    expect(screen.queryByText(/Showing the first/)).toBeNull();
+  });
+
+  it("warns that the matrix is partial when paging hits the cap", async () => {
+    const search = vi.fn(async ({ cursor }: { cursor?: { page?: string } }) =>
+      Array.from({ length: 50 }, (_, i) =>
+        assignment({ id: `${cursor?.page}-${i}`, memberId: "other" }),
+      ),
+    );
+    renderRoles(makeClient({ accessRoleAssignmentSearch: search }));
+
+    const notice = await screen.findByText(
+      "Showing the first 1000 assignments",
+    );
+    expect(notice.getAttribute("role")).toBe("status");
+    expect(search).toHaveBeenCalledTimes(20);
   });
 
   it("hides assignments that belong to members of another organization", async () => {
@@ -296,7 +331,9 @@ describe("RolesView", () => {
     // The roster is fetched once, unfiltered, so the counts stand.
     expect(counts()).toEqual(before);
     expect(search).toHaveBeenCalledTimes(1);
-    expect(search).toHaveBeenCalledWith({ cursor: { limit: 50 } });
+    expect(search).toHaveBeenCalledWith({
+      cursor: { limit: 50, page: "0" },
+    });
 
     fireEvent.change(screen.getByLabelText("Filter by scope type"), {
       target: { value: "ACCESS_SCOPE_TYPE_TEAM" },

@@ -116,6 +116,7 @@ function autoMount() {
       "data-tokens",
       script.getAttribute("data-tokens"),
     ),
+    css: script.getAttribute("data-css") ?? undefined,
     theme:
       (script.getAttribute("data-theme") as MountOptions["theme"]) ?? "auto",
     locale: script.getAttribute("data-locale") ?? undefined,

@@ -29,11 +29,11 @@ describe("Dialog", () => {
     renderDialog();
     const dialog = screen.getByRole("dialog");
     const last = screen.getByRole("button", { name: "last" });
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancel");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Close");
 
     last.focus();
     fireEvent.keyDown(dialog, { key: "Tab" });
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("Cancel");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Close");
 
     fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
     expect(document.activeElement?.textContent).toBe("last");
@@ -43,7 +43,7 @@ describe("Dialog", () => {
     const onClose = renderDialog();
     fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.click(document.querySelector(".aiw-dialog-backdrop")!);
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 

@@ -79,11 +79,19 @@ export function mount(options: MountOptions): MountHandle {
   root.render(
     <ShadowStyleProvider
       shadowRoot={shadowRoot}
-      hostElement={host}
       tokens={options.tokens}
       css={options.css}
     >
-      <IdentityWidgetRoot {...options} theme={theme} runtime={runtime} />
+      {/* Tokens and css are injected into the shadow root above; passing
+          them on would make the root emit the same declarations a second
+          time inside the shadow tree. */}
+      <IdentityWidgetRoot
+        {...options}
+        tokens={undefined}
+        css={undefined}
+        theme={theme}
+        runtime={runtime}
+      />
     </ShadowStyleProvider>,
   );
 
@@ -147,7 +155,10 @@ export type {
   TeamMembershipQuery,
   AccessRoleAssignmentQuery,
 } from "./services/identity-client.js";
-export { decodeConnectStream } from "./services/connect-stream.js";
+export {
+  decodeConnectStream,
+  encodeConnectEnvelope,
+} from "./services/connect-stream.js";
 export { createProfileResolver } from "./services/profile-resolver.js";
 export type {
   ProfileResolver,

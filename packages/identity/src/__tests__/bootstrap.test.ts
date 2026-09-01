@@ -152,6 +152,17 @@ describe("bootstrap", () => {
     );
   });
 
+  it("passes data-css through verbatim", async () => {
+    await boot({
+      "data-api-base-url": API,
+      "data-css": ".aiw-table td { padding: 2px }",
+    });
+
+    expect(mockMount).toHaveBeenCalledWith(
+      expect.objectContaining({ css: ".aiw-table td { padding: 2px }" }),
+    );
+  });
+
   it("logs and ignores malformed JSON attributes", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     await boot({ "data-api-base-url": API, "data-tokens": "{nope" });

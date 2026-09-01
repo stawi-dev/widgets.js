@@ -272,3 +272,73 @@ describe("deriveProfileApiBaseUrl", () => {
     expect(deriveProfileApiBaseUrl("not a url")).toBe("not a url");
   });
 });
+
+describe("IdentityWidgetRoot theming", () => {
+  /** The style element the root renders for host tokens and raw css. */
+  function rootStyle(container: HTMLElement): HTMLStyleElement | null {
+    return container.querySelector(".aiw-root > style");
+  }
+
+  it("scopes host tokens to this instance", async () => {
+    const { container } = renderRoot({ tokens: { colorPrimary: "#123456" } });
+    await settle();
+
+    const root = container.querySelector<HTMLElement>(".aiw-root")!;
+    const instance = root.getAttribute("data-aiw-instance")!;
+    expect(instance).toBeTruthy();
+
+    const text = rootStyle(container)!.textContent!;
+    expect(text).toContain("--aiw-primary: #123456");
+    expect(text).toContain(`[data-aiw-instance="${instance}"]{`);
+  });
+
+  it("emits the dark and light branches like the shadow build", async () => {
+    const { container } = renderRoot({
+      tokens: { dark: { colorBg: "#000" }, light: { colorBg: "#fff" } },
+    });
+    await settle();
+
+    const text = rootStyle(container)!.textContent!;
+    expect(text).toContain('[data-theme="dark"]{--aiw-bg: #000;}');
+    expect(text).toContain('[data-theme="light"]{--aiw-bg: #fff;}');
+    expect(text).toContain("@media (prefers-color-scheme: dark){");
+    expect(text).toContain("@media (prefers-color-scheme: light){");
+    expect(text).toContain('[data-theme="auto"]{--aiw-bg: #000;}');
+  });
+
+  it("appends the host's raw css verbatim, after the tokens", async () => {
+    const { container } = renderRoot({
+      tokens: { colorPrimary: "#123456" },
+      css: ".aiw-table td { padding: 2px }",
+    });
+    await settle();
+
+    const text = rootStyle(container)!.textContent!;
+    expect(text).toContain(".aiw-table td { padding: 2px }");
+    expect(text.indexOf("--aiw-primary")).toBeLessThan(
+      text.indexOf(".aiw-table"),
+    );
+  });
+
+  it("drops a token that tries to break out of its declaration", async () => {
+    const { container } = renderRoot({
+      tokens: {
+        radius: "1px} body{display:none",
+        colorPrimary: "#00ff00",
+      },
+    });
+    await settle();
+
+    const text = rootStyle(container)!.textContent!;
+    expect(text).not.toContain("display:none");
+    expect(text).not.toContain("--aiw-radius");
+    expect(text).toContain("--aiw-primary: #00ff00;");
+  });
+
+  it("renders no style element when there are no tokens and no css", async () => {
+    const { container } = renderRoot();
+    await settle();
+
+    expect(rootStyle(container)).toBeNull();
+  });
+});
