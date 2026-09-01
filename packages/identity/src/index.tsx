@@ -159,6 +159,17 @@ export {
   decodeConnectStream,
   encodeConnectEnvelope,
 } from "./services/connect-stream.js";
+export {
+  createTenancyClient,
+  deriveTenancyApiBaseUrl,
+} from "./services/tenancy-client.js";
+export type {
+  TenancyClient,
+  TenancyClientDeps,
+  PermissionMutation,
+  RoleBinding,
+  ServiceNamespace,
+} from "./services/tenancy-client.js";
 export { createProfileResolver } from "./services/profile-resolver.js";
 export type {
   ProfileResolver,
@@ -178,3 +189,19 @@ export type {
   VocabularyOption,
   RoleKeyOption,
 } from "./vocabulary/index.js";
+export {
+  bundleFor,
+  diffGrants,
+  effectivePermissions,
+  expandBundleProperties,
+  platformRoleOrder,
+} from "./permissions/index.js";
+export type {
+  AccessBundle,
+  EffectivePermission,
+  MemberProperties,
+  PermissionModel,
+  PermissionNamespace,
+  PermissionSource,
+  PlatformRole,
+} from "./permissions/index.js";
