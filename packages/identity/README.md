@@ -326,7 +326,7 @@ function AssignControls({ requestId }: { requestId: string }) {
 
 `useIdentityDirectory({ runtime, apiBaseUrl, profileApiBaseUrl?,
 organizationId, ttlMs? })` returns
-`{ members, teams, loading, error?, resolveName, refresh }`. Members carry
+`{ members, teams, loading, error?, truncated, resolveName, refresh }`. Members carry
 the resolved `name` and `email` when the caller may read profiles, and
 `resolveName()` falls back to the raw profile id when it may not. Snapshots
 are cached per organisation for `ttlMs` (default 60 000), and the cache holds
@@ -340,7 +340,19 @@ reports `undefined` when the empty option is chosen. `TeamPicker` is the
 same shape over teams. Both are light-DOM `<select>` elements carrying the
 `aiw-select aiw-picker` classes, so they inherit
 [`widgetStylesFor()`](#react-usage) when you inject it and stay plain,
-styleable selects when you don't.
+styleable selects when you don't. Both also take `id` and `aria-label`; the
+accessible name defaults to the widget's own translation of "Member" /
+"Team", so the control is never unnamed.
+
+Two caveats worth designing around:
+
+- `truncated` is `true` when paging hit its safety cap (20 pages), so the
+  lists are a partial view of a very large organisation and a picker can
+  silently omit the person you are looking for. Say so in your UI rather
+  than presenting the short list as the whole workforce.
+- `refresh()` reloads the instance that called it. It drops the shared cache
+  entry, so every other instance picks the new snapshot up on its next load
+  — but instances already mounted keep showing what they have until then.
 
 ## Theming
 

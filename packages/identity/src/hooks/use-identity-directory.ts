@@ -3,7 +3,7 @@ import type { AuthRuntime } from "@stawi/auth-runtime";
 import { createIdentityClient } from "../services/identity-client.js";
 import { createProfileResolver } from "../services/profile-resolver.js";
 import { fetchAllPages } from "../services/fetch-all.js";
-import { deriveProfileApiBaseUrl } from "../components/IdentityWidgetRoot.js";
+import { deriveProfileApiBaseUrl } from "../services/api-base.js";
 import type { InternalTeam, WorkforceMember } from "../types.js";
 
 /** A workforce member with whatever the profile service could tell us. */
@@ -17,6 +17,12 @@ export interface IdentityDirectory {
   teams: InternalTeam[];
   loading: boolean;
   error?: string;
+  /**
+   * True when paging hit its safety cap, so `members` or `teams` is a
+   * partial view. A picker built on a truncated directory can silently
+   * omit the person you are looking for — say so in the UI.
+   */
+  truncated: boolean;
   /** Display name for a profile id; the id itself when it is unknown. */
   resolveName(profileId: string): string;
   /** Drops the cached snapshot and loads it again. */
@@ -39,9 +45,10 @@ const DEFAULT_TTL_MS = 60_000;
 interface DirectorySnapshot {
   members: DirectoryMember[];
   teams: InternalTeam[];
+  truncated: boolean;
 }
 
-const EMPTY: DirectorySnapshot = { members: [], teams: [] };
+const EMPTY: DirectorySnapshot = { members: [], teams: [], truncated: false };
 
 interface CacheEntry {
   at: number;
@@ -102,6 +109,7 @@ async function loadDirectory(
       };
     }),
     teams: teams.items,
+    truncated: members.truncated || teams.truncated,
   };
 }
 
@@ -202,6 +210,7 @@ export function useIdentityDirectory(
   return {
     members: snapshot.members,
     teams: snapshot.teams,
+    truncated: snapshot.truncated,
     loading,
     ...(error === undefined ? {} : { error }),
     resolveName,

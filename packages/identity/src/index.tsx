@@ -159,10 +159,11 @@ export {
   decodeConnectStream,
   encodeConnectEnvelope,
 } from "./services/connect-stream.js";
+export { createTenancyClient } from "./services/tenancy-client.js";
 export {
-  createTenancyClient,
+  deriveProfileApiBaseUrl,
   deriveTenancyApiBaseUrl,
-} from "./services/tenancy-client.js";
+} from "./services/api-base.js";
 export type {
   TenancyClient,
   TenancyClientDeps,

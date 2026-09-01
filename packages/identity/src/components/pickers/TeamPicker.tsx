@@ -1,3 +1,4 @@
+import { useT } from "../../hooks/use-t.js";
 import type { IdentityDirectory } from "../../hooks/use-identity-directory.js";
 
 export interface TeamPickerProps {
@@ -8,6 +9,13 @@ export interface TeamPickerProps {
   /** Label of the empty option. Empty by default. */
   placeholder?: string;
   className?: string;
+  id?: string;
+  /**
+   * Accessible name. Defaults to the widget's own translation, so the
+   * control always has one; pass your own when the surrounding form names
+   * it differently.
+   */
+  "aria-label"?: string;
 }
 
 function classes(...names: (string | undefined)[]): string {
@@ -21,9 +29,14 @@ export function TeamPicker({
   onChange,
   placeholder = "",
   className,
+  id,
+  "aria-label": ariaLabel,
 }: TeamPickerProps) {
+  const t = useT();
   return (
     <select
+      id={id}
+      aria-label={ariaLabel ?? t("picker.team")}
       className={classes("aiw-select", "aiw-picker", className)}
       value={value ?? ""}
       aria-busy={directory.loading || undefined}

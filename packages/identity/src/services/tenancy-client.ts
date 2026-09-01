@@ -39,22 +39,6 @@ export interface TenancyClientDeps {
 }
 
 /**
- * Derives the tenancy base URL from a sibling service base URL, so hosts
- * that already configure `https://api.stawi.org/identity` need not repeat
- * themselves: the last path segment is swapped for `tenancy`, and a URL
- * with no path gets one appended.
- */
-export function deriveTenancyApiBaseUrl(apiBaseUrl: string): string {
-  const trimmed = apiBaseUrl.replace(/\/+$/, "");
-  // Split off scheme + authority so the `//` in `https://` is never
-  // mistaken for a path separator.
-  const match = /^([a-z][a-z0-9+.-]*:\/\/[^/]*)?(.*)$/i.exec(trimmed);
-  const origin = match?.[1] ?? "";
-  const path = (match?.[2] ?? "").replace(/\/[^/]*$/, "");
-  return `${origin}${path}/tenancy`;
-}
-
-/**
  * Framework-free Connect client for the platform tenancy service. Every
  * RPC used here is unary JSON; errors are normalised to `IdentityError`
  * so a caller lacking `service_tenancy:permission_grant` surfaces as

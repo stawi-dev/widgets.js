@@ -75,6 +75,7 @@ function Probe({
       <span data-testid="emails">
         {directory.members.map((m) => m.email ?? "-").join(",")}
       </span>
+      <span data-testid="truncated">{directory.truncated ? "yes" : "no"}</span>
       <span data-testid="teams">
         {directory.teams.map((t) => t.name).join(",")}
       </span>
@@ -102,6 +103,7 @@ describe("useIdentityDirectory", () => {
     expect(screen.getByTestId("members").textContent).toBe("p1,p2");
     expect(screen.getByTestId("emails").textContent).toBe("ada@example.com,-");
     expect(screen.getByTestId("teams").textContent).toBe("Sourcing");
+    expect(screen.getByTestId("truncated").textContent).toBe("no");
     expect(screen.getByTestId("error").textContent).toBe("");
   });
 
@@ -156,6 +158,34 @@ describe("useIdentityDirectory", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "refresh" }));
     await waitFor(() => expect(searchCalls(calls)).toBe(2));
+  });
+
+  it("flags a truncated directory when paging hits its cap", async () => {
+    // A server that always answers a full page keeps fetchAllPages going
+    // until its safety cap, which is exactly the partial-view case.
+    const full = envelope(
+      0,
+      JSON.stringify({
+        data: Array.from({ length: 50 }, (_, i) => ({
+          id: `m${i}`,
+          organizationId: "o-cap",
+          profileId: `p${i}`,
+          state: "ACTIVE",
+        })),
+      }),
+    );
+    const fetch = async (url: string) =>
+      url.endsWith("/WorkforceMemberSearch")
+        ? (concat(full) as never)
+        : url.endsWith("/InternalTeamSearch")
+          ? (concat(TEAMS, END) as never)
+          : ({ data: { id: "p0" } } as never);
+
+    render(<Probe org="o-cap" runtime={{ fetch } as never} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("truncated").textContent).toBe("yes"),
+    );
   });
 
   it("reports a load failure and does not cache it", async () => {

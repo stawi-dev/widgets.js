@@ -1,3 +1,4 @@
+import { useT } from "../../hooks/use-t.js";
 import type { IdentityDirectory } from "../../hooks/use-identity-directory.js";
 
 export interface MemberPickerProps {
@@ -10,6 +11,13 @@ export interface MemberPickerProps {
   /** Label of the empty option. Empty by default. */
   placeholder?: string;
   className?: string;
+  id?: string;
+  /**
+   * Accessible name. Defaults to the widget's own translation, so the
+   * control always has one; pass your own when the surrounding form names
+   * it differently.
+   */
+  "aria-label"?: string;
 }
 
 function classes(...names: (string | undefined)[]): string {
@@ -30,13 +38,18 @@ export function MemberPicker({
   activeOnly = true,
   placeholder = "",
   className,
+  id,
+  "aria-label": ariaLabel,
 }: MemberPickerProps) {
+  const t = useT();
   const members = activeOnly
     ? directory.members.filter((m) => m.state === "ACTIVE")
     : directory.members;
 
   return (
     <select
+      id={id}
+      aria-label={ariaLabel ?? t("picker.member")}
       className={classes("aiw-select", "aiw-picker", className)}
       value={value ?? ""}
       aria-busy={directory.loading || undefined}

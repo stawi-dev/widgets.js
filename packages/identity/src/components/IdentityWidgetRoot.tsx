@@ -6,10 +6,11 @@ import { useAuth } from "../hooks/use-auth.js";
 import { useT } from "../hooks/use-t.js";
 import { createIdentityClient } from "../services/identity-client.js";
 import { createProfileResolver } from "../services/profile-resolver.js";
+import { createTenancyClient } from "../services/tenancy-client.js";
 import {
-  createTenancyClient,
+  deriveProfileApiBaseUrl,
   deriveTenancyApiBaseUrl,
-} from "../services/tenancy-client.js";
+} from "../services/api-base.js";
 import { AuthGate } from "./AuthGate.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { OrganizationGate } from "./OrganizationGate.js";
@@ -20,25 +21,6 @@ import { UnitsView } from "./units/UnitsView.js";
 import { PermissionsView } from "./permissions/PermissionsView.js";
 import { themedTokenSheet } from "../themes/apply.js";
 import type { IdentityView, IdentityWidgetProps } from "../types.js";
-
-/**
- * `https://api.stawi.org/identity` → `https://api.stawi.org/profile`.
- * The two services sit side by side behind one gateway, so replacing the
- * last path segment is the right default. A URL we cannot parse is returned
- * unchanged rather than mangled.
- */
-export function deriveProfileApiBaseUrl(apiBaseUrl: string): string {
-  try {
-    const url = new URL(apiBaseUrl);
-    const segments = url.pathname.split("/").filter(Boolean);
-    segments.pop();
-    segments.push("profile");
-    url.pathname = `/${segments.join("/")}`;
-    return url.toString().replace(/\/+$/, "");
-  } catch {
-    return apiBaseUrl;
-  }
-}
 
 /** The React entry point. Renders into the host's DOM — no shadow root. */
 export function IdentityWidgetRoot(props: IdentityWidgetProps) {

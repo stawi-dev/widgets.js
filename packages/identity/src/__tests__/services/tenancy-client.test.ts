@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  createTenancyClient,
-  deriveTenancyApiBaseUrl,
-} from "../../services/tenancy-client.js";
+import { createTenancyClient } from "../../services/tenancy-client.js";
 import { IdentityError } from "../../services/errors.js";
 
 type Call = [string, any];
@@ -167,38 +164,5 @@ describe("createTenancyClient", () => {
 
     expect(err).toBeInstanceOf(IdentityError);
     expect((err as IdentityError).code).toBe("unknown");
-  });
-});
-
-describe("deriveTenancyApiBaseUrl", () => {
-  it("swaps the last path segment for tenancy", () => {
-    expect(deriveTenancyApiBaseUrl("https://api.stawi.org/identity")).toBe(
-      "https://api.stawi.org/tenancy",
-    );
-  });
-
-  it("ignores a trailing slash", () => {
-    expect(deriveTenancyApiBaseUrl("https://api.stawi.org/identity/")).toBe(
-      "https://api.stawi.org/tenancy",
-    );
-  });
-
-  it("appends when the URL has no path", () => {
-    expect(deriveTenancyApiBaseUrl("https://api.stawi.org")).toBe(
-      "https://api.stawi.org/tenancy",
-    );
-    expect(deriveTenancyApiBaseUrl("https://api.stawi.org/")).toBe(
-      "https://api.stawi.org/tenancy",
-    );
-  });
-
-  it("keeps deeper path prefixes", () => {
-    expect(
-      deriveTenancyApiBaseUrl("https://api.example.com/api/v1/identity"),
-    ).toBe("https://api.example.com/api/v1/tenancy");
-  });
-
-  it("handles a path-only base URL", () => {
-    expect(deriveTenancyApiBaseUrl("/identity")).toBe("/tenancy");
   });
 });

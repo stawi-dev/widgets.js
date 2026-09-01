@@ -28,6 +28,8 @@
   "state.ACTIVE": "Hai",
   "state.INACTIVE": "Haitumiki",
   "state.DELETED": "Imefutwa",
+  "picker.member": "Mwanachama",
+  "picker.team": "Timu",
   "members.caption": "Wafanyakazi wa shirika",
   "members.search": "Tafuta wanachama",
   "members.loading": "Inapakia wanachama",

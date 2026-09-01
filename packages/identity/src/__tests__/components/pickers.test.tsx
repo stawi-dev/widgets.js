@@ -20,6 +20,7 @@ function directory(over: Partial<IdentityDirectory> = {}): IdentityDirectory {
       { id: "t2", organizationId: "o1", name: "Finance", code: "FIN" },
     ],
     loading: false,
+    truncated: false,
     resolveName: (id) => (id === "p1" ? "Ada" : id),
     refresh: vi.fn(),
     ...over,
@@ -77,6 +78,24 @@ describe("MemberPicker", () => {
     expect(onChange).toHaveBeenCalledWith(undefined);
   });
 
+  it("names itself, and takes a host label and id", () => {
+    const { rerender } = render(
+      <MemberPicker directory={directory()} onChange={vi.fn()} />,
+    );
+    expect(screen.getByRole("combobox", { name: "Member" })).toBeTruthy();
+
+    rerender(
+      <MemberPicker
+        directory={directory()}
+        id="assignee"
+        aria-label="Assignee"
+        onChange={vi.fn()}
+      />,
+    );
+    const select = screen.getByRole("combobox", { name: "Assignee" });
+    expect(select.id).toBe("assignee");
+  });
+
   it("marks itself busy while the directory loads", () => {
     render(
       <MemberPicker
@@ -106,6 +125,11 @@ describe("TeamPicker", () => {
     expect(select.className).toContain("mine");
     fireEvent.change(select, { target: { value: "t2" } });
     expect(onChange).toHaveBeenCalledWith("t2");
+  });
+
+  it("names itself Team by default", () => {
+    render(<TeamPicker directory={directory()} onChange={vi.fn()} />);
+    expect(screen.getByRole("combobox", { name: "Team" })).toBeTruthy();
   });
 
   it("reports undefined when the empty option is chosen", () => {

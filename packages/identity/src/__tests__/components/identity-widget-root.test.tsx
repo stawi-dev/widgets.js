@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { AuthRuntime } from "@stawi/auth-runtime";
-import {
-  IdentityWidgetRoot,
-  deriveProfileApiBaseUrl,
-} from "../../components/IdentityWidgetRoot.js";
+import { IdentityWidgetRoot } from "../../components/IdentityWidgetRoot.js";
 import type { IdentityClient } from "../../services/identity-client.js";
 import type { ProfileResolver } from "../../services/profile-resolver.js";
 import type { Organization } from "../../types.js";
@@ -255,21 +252,6 @@ describe("IdentityWidgetRoot", () => {
       createIdentityClient.mockImplementation(() => client);
       spy.mockRestore();
     }
-  });
-});
-
-describe("deriveProfileApiBaseUrl", () => {
-  it.each([
-    ["https://api.stawi.org/identity", "https://api.stawi.org/profile"],
-    ["https://api.stawi.org/identity/", "https://api.stawi.org/profile"],
-    ["https://api.stawi.org/v1/identity", "https://api.stawi.org/v1/profile"],
-    ["https://api.stawi.org", "https://api.stawi.org/profile"],
-  ])("%s -> %s", (input, expected) => {
-    expect(deriveProfileApiBaseUrl(input)).toBe(expected);
-  });
-
-  it("returns an unparseable base URL unchanged", () => {
-    expect(deriveProfileApiBaseUrl("not a url")).toBe("not a url");
   });
 });
 

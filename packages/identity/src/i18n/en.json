@@ -28,6 +28,8 @@
   "state.ACTIVE": "Active",
   "state.INACTIVE": "Inactive",
   "state.DELETED": "Deleted",
+  "picker.member": "Member",
+  "picker.team": "Team",
   "members.caption": "Workforce members",
   "members.search": "Search members",
   "members.loading": "Loading members",
