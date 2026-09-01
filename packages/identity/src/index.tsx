@@ -11,6 +11,18 @@ export type {
 } from "./services/identity-client.js";
 export { decodeConnectStream } from "./services/connect-stream.js";
 export { IdentityError } from "./services/errors.js";
+export {
+  generalVocabulary,
+  fintechVocabulary,
+  commerceVocabulary,
+  manufacturingVocabulary,
+  mergeVocabulary,
+} from "./vocabulary/index.js";
+export type {
+  IdentityVocabulary,
+  VocabularyOption,
+  RoleKeyOption,
+} from "./vocabulary/index.js";
 export type {
   AccessRoleAssignment,
   AccessScopeType,
