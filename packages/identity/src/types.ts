@@ -1,5 +1,6 @@
 import type { AuthRuntime, AuthState } from "@stawi/auth-runtime";
 import type { IdentityVocabulary } from "./vocabulary/types.js";
+import type { PermissionModel } from "./permissions/types.js";
 import type { IdentityWidgetThemedTokens } from "./themes/types.js";
 
 /** The tab a host can land the widget on. */
@@ -136,6 +137,22 @@ export interface IdentityWidgetProps {
    * `/profile`.
    */
   profileApiBaseUrl?: string;
+  /**
+   * Tenancy service base, used to grant and revoke permissions. Defaults to
+   * `apiBaseUrl` with its last path segment replaced by `/tenancy`.
+   */
+  tenancyApiBaseUrl?: string;
+  /**
+   * Access bundles and labels the host offers. When set, the member dialog
+   * shows a bundle select instead of `vocabulary.platformRoles`, and
+   * activating a member applies the bundle's permissions in tenancy.
+   */
+  permissionModel?: PermissionModel;
+  /** Notified after every member write the widget makes. */
+  onMemberChange?: (event: {
+    member: WorkforceMember;
+    change: "created" | "updated" | "activated" | "deactivated" | "grants";
+  }) => void;
   /** Pin one organization instead of showing the picker. */
   organizationId?: string;
   /** Offer the create form when the caller belongs to no organization. */

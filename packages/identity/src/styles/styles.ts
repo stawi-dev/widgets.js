@@ -354,6 +354,26 @@ const BASE_RULES = `
   color: var(--aiw-text-secondary);
 }
 
+.aiw-members-bundle {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  margin-inline-end: 6px;
+}
+
+.aiw-chip {
+  background: var(--aiw-muted-strong);
+  border-radius: 999px;
+  color: var(--aiw-text-secondary);
+  font-size: 11px;
+  padding: 1px 8px;
+}
+
+.aiw-grant-issues ul {
+  margin: 6px 0;
+  padding-inline-start: 18px;
+}
+
 .aiw-members-actions,
 .aiw-roles-actions,
 .aiw-team-members-actions,

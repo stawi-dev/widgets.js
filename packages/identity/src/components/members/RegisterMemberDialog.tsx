@@ -5,6 +5,16 @@ import { useT } from "../../hooks/use-t.js";
 import { Dialog } from "../Dialog.js";
 import { Field } from "../Field.js";
 import { platformRoleOf } from "./labels.js";
+import { expandBundleProperties, diffGrants } from "../../permissions/model.js";
+import type {
+  MemberProperties,
+  PermissionModel,
+} from "../../permissions/types.js";
+import {
+  applyGrantPlans,
+  nonEmptyPlans,
+  type GrantIssue,
+} from "../../services/grant-applier.js";
 import type { OrgUnit, State, WorkforceMember } from "../../types.js";
 
 /** How a new member's profile is identified. */
@@ -19,7 +29,56 @@ interface RegisterMemberDialogProps {
   /** Home unit options; empty unless the org-units feature is on. */
   units: OrgUnit[];
   onClose: () => void;
-  onSaved: () => void;
+  /** Called after the record is written; `issues` lists grants that failed. */
+  onSaved: (result: { member: WorkforceMember; issues: GrantIssue[] }) => void;
+}
+
+/**
+ * The bundle keys a dialog opens with: the member's recorded bundles, or —
+ * for a new member — the first bundle each namespace offers. An existing
+ * member with no bundle keeps none until an admin picks one.
+ */
+function initialBundles(
+  model: PermissionModel | undefined,
+  member: WorkforceMember | null,
+): Record<string, string> {
+  const recorded =
+    (member?.properties as MemberProperties | undefined)?.access_bundle ?? {};
+  const out: Record<string, string> = {};
+  for (const ns of model?.namespaces ?? []) {
+    out[ns.namespace] =
+      recorded[ns.namespace] ?? (member ? "" : (ns.bundles[0]?.key ?? ""));
+  }
+  return out;
+}
+
+/**
+ * Applies the chosen bundles to a member's properties. A namespace left on
+ * "no bundle" has its bundle, grants and revokes dropped; every other
+ * property — including namespaces outside the model — is carried through.
+ */
+function withBundles(
+  model: PermissionModel,
+  selection: Record<string, string>,
+  existing: MemberProperties,
+): MemberProperties {
+  const cleared: MemberProperties = {
+    ...existing,
+    access_bundle: { ...(existing.access_bundle ?? {}) },
+    permission_grants: { ...(existing.permission_grants ?? {}) },
+    permission_revokes: { ...(existing.permission_revokes ?? {}) },
+  };
+  const chosen: Record<string, string> = {};
+  for (const [ns, key] of Object.entries(selection)) {
+    if (key) {
+      chosen[ns] = key;
+      continue;
+    }
+    delete cleared.access_bundle?.[ns];
+    delete cleared.permission_grants?.[ns];
+    delete cleared.permission_revokes?.[ns];
+  }
+  return expandBundleProperties(model, chosen, cleared);
 }
 
 /**
@@ -33,8 +92,16 @@ export function RegisterMemberDialog({
   onClose,
   onSaved,
 }: RegisterMemberDialogProps) {
-  const { client, vocabulary, features, organization, profileResolver } =
-    useIdentity();
+  const {
+    client,
+    tenancy,
+    permissionModel,
+    onMemberChange,
+    vocabulary,
+    features,
+    organization,
+    profileResolver,
+  } = useIdentity();
   const hooks = useContext(HooksContext);
   const t = useT();
   const isEdit = member !== null;
@@ -50,6 +117,9 @@ export function RegisterMemberDialog({
   );
   const [platformRole, setPlatformRole] = useState(
     platformRoleOf(member?.properties),
+  );
+  const [bundles, setBundles] = useState<Record<string, string>>(() =>
+    initialBundles(permissionModel, member),
   );
   const [state, setState] = useState<State>(member?.state ?? "CREATED");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -82,12 +152,30 @@ export function RegisterMemberDialog({
           resolvedProfileId = found.id;
         }
 
-        const properties: Record<string, unknown> = {
-          ...(member?.properties ?? {}),
-        };
-        if (features.platformRoles) {
+        const existing = (member?.properties ?? {}) as MemberProperties;
+        let properties: MemberProperties = { ...existing };
+        if (permissionModel) {
+          properties = withBundles(permissionModel, bundles, existing);
+        } else if (features.platformRoles) {
           if (platformRole) properties.platform_role = platformRole;
           else delete properties.platform_role;
+        }
+
+        // An active member's tenancy grants must match the record, so the
+        // difference is applied before it is persisted; a partial failure
+        // still saves and is reported for retry.
+        let issues: GrantIssue[] = [];
+        if (permissionModel && state === "ACTIVE") {
+          issues = await applyGrantPlans(
+            tenancy,
+            resolvedProfileId,
+            nonEmptyPlans(
+              permissionModel.namespaces.map((ns) => ({
+                namespace: ns.namespace,
+                diff: diffGrants(existing, properties, ns.namespace),
+              })),
+            ),
+          );
         }
 
         const payload: Partial<WorkforceMember> = {
@@ -102,8 +190,12 @@ export function RegisterMemberDialog({
           payload.homeOrgUnitId = homeOrgUnitId;
         }
 
-        await client.workforceMemberSave(payload);
-        onSaved();
+        const saved = await client.workforceMemberSave(payload);
+        onMemberChange?.({
+          member: saved,
+          change: isEdit ? "updated" : "created",
+        });
+        onSaved({ member: saved, issues });
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : String(err));
         hooks.onError?.(err);
@@ -112,6 +204,7 @@ export function RegisterMemberDialog({
       }
     },
     [
+      bundles,
       client,
       contact,
       engagementType,
@@ -122,13 +215,16 @@ export function RegisterMemberDialog({
       isEdit,
       member,
       mode,
+      onMemberChange,
       onSaved,
       organization,
+      permissionModel,
       platformRole,
       profileId,
       profileResolver,
       state,
       t,
+      tenancy,
     ],
   );
 
@@ -236,7 +332,39 @@ export function RegisterMemberDialog({
           </Field>
         )}
 
-        {features.platformRoles && (
+        {permissionModel?.namespaces.map((ns) => (
+          <Field
+            key={ns.namespace}
+            label={
+              permissionModel.namespaces.length > 1
+                ? `${t("members.field.accessBundle")}: ${ns.label}`
+                : t("members.field.accessBundle")
+            }
+          >
+            {(props) => (
+              <select
+                {...props}
+                className="aiw-select"
+                value={bundles[ns.namespace] ?? ""}
+                onChange={(e) =>
+                  setBundles((prev) => ({
+                    ...prev,
+                    [ns.namespace]: e.target.value,
+                  }))
+                }
+              >
+                <option value="">{t("members.bundle.none")}</option>
+                {ns.bundles.map((b) => (
+                  <option key={b.key} value={b.key}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        ))}
+
+        {!permissionModel && features.platformRoles && (
           <Field label={t("members.field.platformRole")}>
             {(props) => (
               <select

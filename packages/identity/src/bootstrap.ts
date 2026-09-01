@@ -9,6 +9,7 @@ import {
 } from "./vocabulary/index.js";
 import type { IdentityWidgetThemedTokens } from "./themes/types.js";
 import type { IdentityView } from "./types.js";
+import type { PermissionModel } from "./permissions/types.js";
 
 // Re-exported so the IIFE global (`window.StawiIdentity`) carries the whole
 // public API — `mount`, the vocabulary presets, the data layer — not just
@@ -103,6 +104,12 @@ function autoMount() {
       script.getAttribute("data-logout-redirect-uri") ?? undefined,
     profileApiBaseUrl:
       script.getAttribute("data-profile-api-base-url") ?? undefined,
+    tenancyApiBaseUrl:
+      script.getAttribute("data-tenancy-api-base-url") ?? undefined,
+    permissionModel: parseJsonAttr<PermissionModel>(
+      "data-permission-model",
+      script.getAttribute("data-permission-model"),
+    ),
     organizationId: script.getAttribute("data-organization-id") ?? undefined,
     allowCreateOrganization: parseBoolAttr(
       script.getAttribute("data-allow-create-organization"),

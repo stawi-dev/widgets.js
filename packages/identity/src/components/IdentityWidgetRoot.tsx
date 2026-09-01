@@ -6,6 +6,10 @@ import { useAuth } from "../hooks/use-auth.js";
 import { useT } from "../hooks/use-t.js";
 import { createIdentityClient } from "../services/identity-client.js";
 import { createProfileResolver } from "../services/profile-resolver.js";
+import {
+  createTenancyClient,
+  deriveTenancyApiBaseUrl,
+} from "../services/tenancy-client.js";
 import { AuthGate } from "./AuthGate.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { OrganizationGate } from "./OrganizationGate.js";
@@ -119,6 +123,9 @@ export function IdentityWidgetRoot(props: IdentityWidgetProps) {
 function IdentityShell({
   apiBaseUrl,
   profileApiBaseUrl,
+  tenancyApiBaseUrl,
+  permissionModel,
+  onMemberChange,
   organizationId,
   allowCreateOrganization = true,
   vocabulary,
@@ -130,6 +137,15 @@ function IdentityShell({
   const client = useMemo(
     () => createIdentityClient({ runtime, apiBaseUrl }),
     [runtime, apiBaseUrl],
+  );
+
+  const tenancy = useMemo(
+    () =>
+      createTenancyClient({
+        runtime,
+        apiBaseUrl: tenancyApiBaseUrl ?? deriveTenancyApiBaseUrl(apiBaseUrl),
+      }),
+    [runtime, tenancyApiBaseUrl, apiBaseUrl],
   );
 
   const profileResolver = useMemo(
@@ -145,6 +161,9 @@ function IdentityShell({
   return (
     <IdentityProvider
       client={client}
+      tenancy={tenancy}
+      permissionModel={permissionModel}
+      onMemberChange={onMemberChange}
       profileResolver={profileResolver}
       vocabulary={vocabulary}
       features={features}

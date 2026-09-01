@@ -170,6 +170,12 @@ export type {
   RoleBinding,
   ServiceNamespace,
 } from "./services/tenancy-client.js";
+export { applyGrants, applyGrantPlans } from "./services/grant-applier.js";
+export type {
+  GrantFailure,
+  GrantIssue,
+  GrantPlan,
+} from "./services/grant-applier.js";
 export { createProfileResolver } from "./services/profile-resolver.js";
 export type {
   ProfileResolver,

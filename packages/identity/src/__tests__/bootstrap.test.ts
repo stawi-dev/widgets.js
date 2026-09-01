@@ -152,6 +152,37 @@ describe("bootstrap", () => {
     );
   });
 
+  it("parses data-tenancy-api-base-url and data-permission-model", async () => {
+    const model = {
+      namespaces: [
+        {
+          namespace: "service_imports",
+          label: "Imports",
+          bundles: [
+            {
+              key: "sales",
+              label: "Sales",
+              platformRole: "member",
+              permissions: ["quotes_view"],
+            },
+          ],
+        },
+      ],
+    };
+    await boot({
+      "data-api-base-url": API,
+      "data-tenancy-api-base-url": "https://api.stawi.org/tenancy",
+      "data-permission-model": JSON.stringify(model),
+    });
+
+    expect(mockMount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenancyApiBaseUrl: "https://api.stawi.org/tenancy",
+        permissionModel: model,
+      }),
+    );
+  });
+
   it("passes data-css through verbatim", async () => {
     await boot({
       "data-api-base-url": API,
