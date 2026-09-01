@@ -54,6 +54,8 @@ interface MembersTableProps {
   showPlatformRole: boolean;
   /** When set, the bundle column replaces the platform-role one. */
   permissionModel?: PermissionModel;
+  /** True while a state change is in flight: the state buttons are disabled. */
+  busy?: boolean;
   onActivate: (member: WorkforceMember) => void;
   onDeactivate: (member: WorkforceMember) => void;
   onEdit: (member: WorkforceMember) => void;
@@ -66,6 +68,7 @@ export function MembersTable({
   showHomeUnit,
   showPlatformRole,
   permissionModel,
+  busy = false,
   onActivate,
   onDeactivate,
   onEdit,
@@ -136,6 +139,7 @@ export function MembersTable({
                   <button
                     type="button"
                     className="aiw-button"
+                    disabled={busy}
                     onClick={() => onDeactivate(m)}
                   >
                     {t("members.deactivate")}
@@ -144,6 +148,7 @@ export function MembersTable({
                   <button
                     type="button"
                     className="aiw-button"
+                    disabled={busy}
                     onClick={() => onActivate(m)}
                   >
                     {t("members.activate")}

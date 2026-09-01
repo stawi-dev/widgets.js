@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { createTenancyClient } from "../../services/tenancy-client.js";
+import {
+  createTenancyClient,
+  isPermissionIdentifier,
+} from "../../services/tenancy-client.js";
 import { IdentityError } from "../../services/errors.js";
 
 type Call = [string, any];
@@ -27,6 +30,20 @@ function fakeRuntime(respond: (path: string, init: any) => unknown) {
 
 const BASE = "https://api.stawi.org/tenancy";
 const SVC = `${BASE}/tenancy.v1.TenancyService`;
+
+describe("permission identifiers", () => {
+  it("accepts lower-snake names and rejects everything else", () => {
+    expect(isPermissionIdentifier("service_imports")).toBe(true);
+    expect(isPermissionIdentifier("a")).toBe(true);
+    expect(isPermissionIdentifier("quotes_create2")).toBe(true);
+    expect(isPermissionIdentifier("Quotes_create")).toBe(false);
+    expect(isPermissionIdentifier("quotes-create")).toBe(false);
+    expect(isPermissionIdentifier("2quotes")).toBe(false);
+    expect(isPermissionIdentifier("quotes create")).toBe(false);
+    expect(isPermissionIdentifier("")).toBe(false);
+    expect(isPermissionIdentifier(undefined)).toBe(false);
+  });
+});
 
 describe("createTenancyClient", () => {
   it("posts an empty body to ListServiceNamespaces and returns the catalogue", async () => {
@@ -164,5 +181,49 @@ describe("createTenancyClient", () => {
 
     expect(err).toBeInstanceOf(IdentityError);
     expect((err as IdentityError).code).toBe("unknown");
+  });
+});
+
+describe("createTenancyClient input validation", () => {
+  const cases: Array<[string, { namespace: string; permission: string }]> = [
+    ["an upper-case namespace", { namespace: "Service", permission: "assign" }],
+    [
+      "a dotted namespace",
+      { namespace: "service.imports", permission: "assign" },
+    ],
+    ["an empty permission", { namespace: "service_imports", permission: "" }],
+    [
+      "a permission with a space",
+      { namespace: "service_imports", permission: "quotes create" },
+    ],
+  ];
+
+  for (const [label, bad] of cases) {
+    it(`rejects ${label} before any request`, async () => {
+      const { calls, runtime } = fakeRuntime(() => ({}));
+      const c = createTenancyClient({ runtime, apiBaseUrl: BASE });
+      const mutation = { ...bad, profileId: "p1" };
+
+      await expect(c.grantPermission(mutation)).rejects.toMatchObject({
+        code: "invalid_argument",
+      });
+      await expect(c.revokePermission(mutation)).rejects.toBeInstanceOf(
+        IdentityError,
+      );
+      expect(calls).toEqual([]);
+    });
+  }
+
+  it("names the offending field in the message", async () => {
+    const { runtime } = fakeRuntime(() => ({}));
+    const c = createTenancyClient({ runtime, apiBaseUrl: BASE });
+
+    await expect(
+      c.grantPermission({
+        namespace: "service_imports",
+        permission: "Quotes",
+        profileId: "p1",
+      }),
+    ).rejects.toThrow(/permission must match/);
   });
 });

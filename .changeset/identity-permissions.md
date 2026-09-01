@@ -26,4 +26,14 @@ and a `resolveName()` fallback, cached per organisation for 60 s and shared
 between every component that asks; `MemberPicker` and `TeamPicker` render it
 as light-DOM selects. `createTenancyClient` and `onMemberChange` are exported
 too, and the IIFE bundle reads `data-tenancy-api-base-url` and
-`data-permission-model`.
+`data-permission-model`. `nonEmptyPlans` and `retryGrantIssues` are exported
+alongside `applyGrants`/`applyGrantPlans`, so a host can drive and retry the
+same tenancy writes the widget makes.
+
+`platform_role` is derived from the bundles a member actually holds, so
+moving someone to a lesser bundle lowers it and clearing every bundle
+removes it. `createTenancyClient` rejects a namespace or permission that is
+not a lower-snake identifier before it reaches the wire, and the Permissions
+screen ignores catalogue rows it could never grant. A record write that
+fails after tenancy accepted the change no longer hides the change: the row
+stays as it is and the save is offered again.

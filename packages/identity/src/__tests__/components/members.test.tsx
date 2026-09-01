@@ -129,6 +129,36 @@ describe("MembersView", () => {
     await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
   });
 
+  it("disables the state buttons while the change is in flight", async () => {
+    let release: (m: WorkforceMember) => void = () => {};
+    const save = vi.fn(
+      () =>
+        new Promise<WorkforceMember>((resolve) => {
+          release = resolve;
+        }),
+    );
+    renderMembers(
+      makeClient({
+        workforceMemberSearch: vi.fn().mockResolvedValue([member()]),
+        workforceMemberSave: save,
+      }),
+    );
+
+    const activate = await screen.findByRole("button", { name: "Activate" });
+    fireEvent.click(activate);
+
+    // A second click would interleave two grant/save runs for the same member.
+    await waitFor(() =>
+      expect((activate as HTMLButtonElement).disabled).toBe(true),
+    );
+    fireEvent.click(activate);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release(member({ state: "ACTIVE" }));
+    });
+  });
+
   it("deactivates an active member", async () => {
     const save = vi.fn().mockResolvedValue(member({ state: "INACTIVE" }));
     renderMembers(

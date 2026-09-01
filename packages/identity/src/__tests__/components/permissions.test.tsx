@@ -14,6 +14,7 @@ import {
   useIdentity,
   type MemberChangeEvent,
 } from "../../context/identity-context.js";
+import { HooksContext } from "../../context/hooks-context.js";
 import { IdentityWidgetRoot } from "../../components/IdentityWidgetRoot.js";
 import { PermissionsView } from "../../components/permissions/PermissionsView.js";
 import { identityError } from "../../services/errors.js";
@@ -149,6 +150,7 @@ interface Options {
   client?: IdentityClient;
   tenancy?: TenancyClient;
   onMemberChange?: (event: MemberChangeEvent) => void;
+  onError?: (err: unknown) => void;
 }
 
 function renderPermissions(options: Options = {}) {
@@ -156,19 +158,22 @@ function renderPermissions(options: Options = {}) {
     client = makeClient(),
     tenancy = makeTenancy(),
     onMemberChange,
+    onError,
   } = options;
   render(
-    <IdentityProvider
-      client={client}
-      tenancy={tenancy}
-      permissionModel={MODEL}
-      onMemberChange={onMemberChange}
-      profileResolver={makeResolver()}
-    >
-      <SelectOrganization>
-        <PermissionsView />
-      </SelectOrganization>
-    </IdentityProvider>,
+    <HooksContext.Provider value={{ onError }}>
+      <IdentityProvider
+        client={client}
+        tenancy={tenancy}
+        permissionModel={MODEL}
+        onMemberChange={onMemberChange}
+        profileResolver={makeResolver()}
+      >
+        <SelectOrganization>
+          <PermissionsView />
+        </SelectOrganization>
+      </IdentityProvider>
+    </HooksContext.Provider>,
   );
   return { client, tenancy };
 }
@@ -424,6 +429,135 @@ describe("permissions screen", () => {
     expect(changes.map((c) => c.change)).toEqual(["updated", "grants"]);
   });
 
+  it("offers a retry when the catalogue itself fails to load", async () => {
+    const list = vi.fn().mockRejectedValue(new Error("tenancy down"));
+    renderPermissions({
+      tenancy: makeTenancy({ listServiceNamespaces: list }),
+    });
+
+    // A transport failure is not a refusal: the screen must not claim the
+    // account lacks permission to manage permissions.
+    expect(
+      await screen.findByText("Couldn't load the permission catalogue"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("Your account cannot manage permissions here"),
+    ).toBeNull();
+
+    list.mockResolvedValue(CATALOGUE);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByLabelText("Vehicles View")).toBeTruthy();
+  });
+
+  it("keeps the permission and retries only the save when the record fails", async () => {
+    let failSave = true;
+    const save = vi.fn(async (m: WorkforceMember) => {
+      if (failSave) throw new Error("identity down");
+      return m;
+    });
+    const changes: MemberChangeEvent[] = [];
+    const { tenancy } = renderPermissions({
+      client: makeClient({ workforceMemberSave: save }),
+      onMemberChange: (e) => changes.push(e),
+    });
+
+    fireEvent.click(await screen.findByLabelText("Quotes Create"));
+
+    // Tenancy has the grant, so the row stays on and the save is offered again.
+    expect(
+      await screen.findByText(
+        /Permission applied but the record could not be saved/,
+      ),
+    ).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Quotes Create") as HTMLInputElement).checked,
+    ).toBe(true);
+    expect(tenancy.grantPermission).toHaveBeenCalledTimes(1);
+    expect(changes).toEqual([]);
+
+    failSave = false;
+    fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    expect(tenancy.grantPermission).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.queryByText(/could not be saved/)).toBeNull(),
+    );
+    expect(changes.map((c) => c.change)).toEqual(["grants"]);
+  });
+
+  it("records only what a partly-applied bundle landed and lists the rest", async () => {
+    const save = vi.fn(async (m: WorkforceMember) => m);
+    const tenancy = makeTenancy({
+      grantPermission: vi.fn(async (p: { permission: string }) => {
+        if (p.permission === "requests_view") throw new Error("keto down");
+      }),
+    });
+    renderPermissions({
+      client: makeClient({ workforceMemberSave: save }),
+      tenancy,
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Reapply bundle" }),
+    );
+
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    // `requests_view` never landed, so it stays revoked rather than being
+    // recorded as a bundle grant; `assign` was revoked successfully.
+    expect(save).toHaveBeenCalledWith({
+      ...agent(),
+      properties: {
+        platform_role: "admin",
+        access_bundle: { [NS]: "sales_agent" },
+        permission_grants: { [NS]: ["vehicles_view", "quotes_view"] },
+        permission_revokes: { [NS]: ["requests_view"] },
+      },
+    });
+    expect(
+      screen.getByText("Some permissions couldn't be applied"),
+    ).toBeTruthy();
+    expect(screen.getByText(/requests_view: keto down/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry grants" })).toBeTruthy();
+  });
+
+  it("skips catalogue rows that could never be granted, reporting them once", async () => {
+    const onError = vi.fn();
+    renderPermissions({
+      onError,
+      tenancy: makeTenancy({
+        listServiceNamespaces: vi.fn().mockResolvedValue([
+          {
+            namespace: NS,
+            permissions: [...CATALOGUE[0]!.permissions, "Quotes Print"],
+            roleBindings: {},
+          },
+          { namespace: "Service Bad", permissions: ["ok"], roleBindings: {} },
+        ]),
+      }),
+    });
+
+    expect(await screen.findByLabelText("Vehicles View")).toBeTruthy();
+    expect(screen.queryByLabelText(/Quotes Print/)).toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0]).toMatchObject({
+      code: "invalid_argument",
+    });
+  });
+
+  it("says so when the member list was read to its cap", async () => {
+    paging.truncated = true;
+    try {
+      renderPermissions();
+      expect(
+        await screen.findByText("Showing the first 1 members"),
+      ).toBeTruthy();
+    } finally {
+      paging.truncated = false;
+    }
+  });
+
   it("filters the member list by the search box", async () => {
     renderPermissions({
       client: makeClient({
@@ -501,6 +635,21 @@ async function settle() {
 
 const rootClient = makeClient({
   workforceMemberSearch: vi.fn().mockResolvedValue([]),
+});
+
+/** Lets one test pretend the member read hit its page cap. */
+const paging = vi.hoisted(() => ({ truncated: false }));
+
+vi.mock("../../services/fetch-all.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../services/fetch-all.js")>();
+  return {
+    ...actual,
+    fetchAllPages: async (...args: Parameters<typeof actual.fetchAllPages>) => {
+      const result = await actual.fetchAllPages(...args);
+      return { ...result, truncated: paging.truncated || result.truncated };
+    },
+  };
 });
 
 vi.mock("../../services/identity-client.js", () => ({

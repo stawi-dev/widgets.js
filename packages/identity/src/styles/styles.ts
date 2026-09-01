@@ -494,6 +494,12 @@ const BASE_RULES = `
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 }
 
+.aiw-perm-member-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .aiw-perm-members {
   display: flex;
   flex-direction: column;
@@ -532,6 +538,21 @@ const BASE_RULES = `
   font-size: 0.85em;
 }
 
+.aiw-perm-selected {
+  font-family: var(--aiw-font-heading);
+  font-size: 1.05em;
+  font-weight: var(--aiw-font-weight-heading);
+  margin: 0;
+}
+
+.aiw-perm-unsaved {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
 .aiw-perm-panels {
   display: flex;
   flex-direction: column;
@@ -560,7 +581,6 @@ const BASE_RULES = `
   font-weight: var(--aiw-font-weight-heading);
 }
 
-.aiw-perm-namespace-scope,
 .aiw-perm-bundle {
   color: var(--aiw-text-secondary);
   font-size: 0.9em;

@@ -1,4 +1,11 @@
-import { useCallback, useContext, useEffect, useId, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 import { useIdentity } from "../../context/identity-context.js";
 import { HooksContext } from "../../context/hooks-context.js";
 import { useAsync } from "../../hooks/use-async.js";
@@ -15,9 +22,16 @@ import {
   retryGrantIssues,
   type GrantIssue,
 } from "../../services/grant-applier.js";
-import { bundleFor } from "../../permissions/model.js";
+import { IdentityError } from "../../services/errors.js";
+import { isPermissionIdentifier } from "../../services/tenancy-client.js";
+import type { ServiceNamespace } from "../../services/tenancy-client.js";
+import {
+  bundleFor,
+  reapplyBundle,
+  settleGrants,
+  togglePermission,
+} from "../../permissions/model.js";
 import type {
-  AccessBundle,
   EffectivePermission,
   MemberProperties,
   PermissionNamespace,
@@ -30,81 +44,14 @@ const SEARCH_LIMIT = 50;
 
 const NO_PROFILES = new Map<string, ProfileSummary>();
 
-/** Copy of a namespace-keyed record, with its arrays copied too. */
-function copyLists(
-  record: Record<string, string[]> | undefined,
-): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  for (const [key, value] of Object.entries(record ?? {}))
-    out[key] = [...value];
-  return out;
-}
+const NO_CATALOGUE: ServiceNamespace[] = [];
 
-/** Drops namespaces whose list is empty, so the record stays tidy. */
-function prune(record: Record<string, string[]>): Record<string, string[]> {
-  for (const [key, value] of Object.entries(record)) {
-    if (value.length === 0) delete record[key];
-  }
-  return record;
-}
-
-/**
- * The member record after one permission is switched.
- *
- * Turning a permission on always records a grant and clears any revoke.
- * Turning one off always drops the grant, and records a revoke unless the
- * permission was only ever an override — a bundle permission (and one the
- * platform role carries) needs the revoke to remember the admin's intent.
- */
-export function togglePermission(
-  properties: MemberProperties,
-  namespace: string,
-  row: EffectivePermission,
-  on: boolean,
-): MemberProperties {
-  const grants = copyLists(properties.permission_grants);
-  const revokes = copyLists(properties.permission_revokes);
-  const add = (record: Record<string, string[]>) => {
-    record[namespace] = [
-      ...(record[namespace] ?? []).filter((p) => p !== row.permission),
-      row.permission,
-    ];
-  };
-  const drop = (record: Record<string, string[]>) => {
-    const list = record[namespace];
-    if (list) record[namespace] = list.filter((p) => p !== row.permission);
-  };
-
-  if (on) {
-    add(grants);
-    drop(revokes);
-  } else {
-    drop(grants);
-    if (row.source !== "granted") add(revokes);
-  }
-
-  return {
-    ...properties,
-    permission_grants: prune(grants),
-    permission_revokes: prune(revokes),
-  };
-}
-
-/** The member record after a bundle is re-applied: its set, and no overrides. */
-export function reapplyBundle(
-  properties: MemberProperties,
-  namespace: string,
-  bundle: AccessBundle,
-): MemberProperties {
-  const grants = copyLists(properties.permission_grants);
-  const revokes = copyLists(properties.permission_revokes);
-  grants[namespace] = [...bundle.permissions];
-  delete revokes[namespace];
-  return {
-    ...properties,
-    permission_grants: prune(grants),
-    permission_revokes: prune(revokes),
-  };
+/** What one write attempt achieved, beyond what the caller assumed. */
+interface WriteOutcome {
+  /** The record as it should be saved, when it differs from the optimistic one. */
+  properties?: MemberProperties;
+  /** Writes that did not land — reported for retry rather than thrown. */
+  issues?: GrantIssue[];
 }
 
 function propertiesOf(member: WorkforceMember): MemberProperties {
@@ -115,6 +62,32 @@ function propertiesOf(member: WorkforceMember): MemberProperties {
 function activeFirst(a: WorkforceMember, b: WorkforceMember): number {
   const rank = (m: WorkforceMember) => (m.state === "ACTIVE" ? 0 : 1);
   return rank(a) - rank(b);
+}
+
+/**
+ * Drops catalogue rows whose namespace or permission is not a lower-snake
+ * identifier: they can never be granted (the tenancy client rejects them),
+ * so rendering a toggle for one would only offer an action that fails.
+ */
+function usableCatalogue(entries: ServiceNamespace[]): {
+  entries: ServiceNamespace[];
+  skipped: string[];
+} {
+  const usable: ServiceNamespace[] = [];
+  const skipped: string[] = [];
+  for (const entry of entries) {
+    if (!isPermissionIdentifier(entry.namespace)) {
+      skipped.push(String(entry.namespace));
+      continue;
+    }
+    const permissions: string[] = [];
+    for (const permission of entry.permissions ?? []) {
+      if (isPermissionIdentifier(permission)) permissions.push(permission);
+      else skipped.push(`${entry.namespace}/${String(permission)}`);
+    }
+    usable.push({ ...entry, permissions });
+  }
+  return { entries: usable, skipped };
 }
 
 /**
@@ -149,6 +122,15 @@ export function PermissionsView() {
     member: WorkforceMember;
     issues: GrantIssue[];
   } | null>(null);
+  /**
+   * A change tenancy accepted whose record could not be written. The screen
+   * keeps showing the new permission — it is real — and offers the save again.
+   */
+  const [unsaved, setUnsaved] = useState<{
+    member: WorkforceMember;
+    properties: MemberProperties;
+    error: string;
+  } | null>(null);
 
   const organizationId = organization?.id ?? "";
 
@@ -182,6 +164,12 @@ export function PermissionsView() {
     [client, organizationId, features.orgUnits],
   );
 
+  const usable = useMemo(
+    () => usableCatalogue(catalogue.data ?? NO_CATALOGUE),
+    [catalogue.data],
+  );
+  const skipped = usable.skipped.join(",");
+
   const resolved = profiles.data ?? NO_PROFILES;
   const needle = query.trim().toLowerCase();
   const list = loaded
@@ -201,41 +189,99 @@ export function PermissionsView() {
     if (members.error) hooks.onError?.(members.error);
   }, [members.error, hooks]);
 
+  useEffect(() => {
+    if (catalogue.error) hooks.onError?.(catalogue.error);
+  }, [catalogue.error, hooks]);
+
+  useEffect(() => {
+    // Once per catalogue, not once per row: a malformed catalogue is one fault.
+    if (skipped === "") return;
+    hooks.onError?.(
+      new IdentityError(
+        "invalid_argument",
+        `invalid_argument: catalogue entries skipped: ${skipped}`,
+      ),
+    );
+  }, [skipped, hooks]);
+
+  /** Writes the record and tells the host, keeping the screen in step. */
+  const saveRecord = useCallback(
+    async (member: WorkforceMember, properties: MemberProperties) => {
+      const saved = await client.workforceMemberSave({ ...member, properties });
+      setEdited((prev) => ({ ...prev, [member.id]: saved }));
+      onMemberChange?.({ member: saved, change: "grants" });
+    },
+    [client, onMemberChange],
+  );
+
   /**
    * Shows the new record at once, applies `writes` to tenancy, then
-   * persists. Any failure puts the member back as it was and reports why.
+   * persists what actually landed.
+   *
+   * A tenancy failure puts the member back as it was: nothing changed. A
+   * save failure does not — the permission *is* changed in tenancy, so
+   * hiding it would be a lie; the row stays and the save is offered again.
    */
   const persist = useCallback(
     async (
       member: WorkforceMember,
-      properties: MemberProperties,
-      writes: () => Promise<void>,
+      optimistic: MemberProperties,
+      writes: () => Promise<WriteOutcome>,
     ) => {
       setError(null);
       setGrantIssues(null);
+      setUnsaved(null);
       setBusy(true);
       setEdited((prev) => ({
         ...prev,
-        [member.id]: { ...member, properties },
+        [member.id]: { ...member, properties: optimistic },
       }));
+      let applied = false;
+      let properties = optimistic;
       try {
-        await writes();
-        const saved = await client.workforceMemberSave({
-          ...member,
-          properties,
-        });
-        setEdited((prev) => ({ ...prev, [member.id]: saved }));
-        onMemberChange?.({ member: saved, change: "grants" });
+        const outcome = await writes();
+        applied = true;
+        properties = outcome.properties ?? optimistic;
+        if (properties !== optimistic) {
+          setEdited((prev) => ({
+            ...prev,
+            [member.id]: { ...member, properties },
+          }));
+        }
+        if (outcome.issues && outcome.issues.length > 0) {
+          setGrantIssues({ member, issues: outcome.issues });
+        }
+        await saveRecord(member, properties);
       } catch (err) {
-        setEdited((prev) => ({ ...prev, [member.id]: member }));
-        setError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        if (applied) setUnsaved({ member, properties, error: message });
+        else {
+          setEdited((prev) => ({ ...prev, [member.id]: member }));
+          setError(message);
+        }
         hooks.onError?.(err);
       } finally {
         setBusy(false);
       }
     },
-    [client, hooks, onMemberChange],
+    [hooks, saveRecord],
   );
+
+  /** Re-attempts only the record write; tenancy already has the change. */
+  const retrySave = useCallback(async () => {
+    if (!unsaved) return;
+    setBusy(true);
+    try {
+      await saveRecord(unsaved.member, unsaved.properties);
+      setUnsaved(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setUnsaved({ ...unsaved, error: message });
+      hooks.onError?.(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [hooks, saveRecord, unsaved]);
 
   const handleToggle = useCallback(
     (ns: PermissionNamespace, row: EffectivePermission, next: boolean) => {
@@ -251,6 +297,7 @@ export function PermissionsView() {
         async () => {
           if (next) await tenancy.grantPermission(mutation);
           else await tenancy.revokePermission(mutation);
+          return {};
         },
       );
     },
@@ -270,23 +317,21 @@ export function PermissionsView() {
       const extras = (
         properties.permission_grants?.[ns.namespace] ?? []
       ).filter((p) => !bundle.permissions.includes(p));
-      void persist(
-        selected,
-        reapplyBundle(properties, ns.namespace, bundle),
-        async () => {
-          const { failed } = await applyGrants(
-            tenancy,
-            selected.profileId,
-            { grant: [...bundle.permissions], revoke: extras },
-            ns.namespace,
-          );
-          if (failed.length > 0) {
-            throw new Error(
-              failed.map((f) => `${f.permission}: ${f.error}`).join("; "),
-            );
-          }
-        },
-      );
+      const attempted = reapplyBundle(properties, ns.namespace, bundle);
+      void persist(selected, attempted, async () => {
+        const { failed } = await applyGrants(
+          tenancy,
+          selected.profileId,
+          { grant: [...bundle.permissions], revoke: extras },
+          ns.namespace,
+        );
+        // A partly-applied bundle is recorded as it landed and reported for
+        // retry, so the record never claims grants tenancy refused.
+        return {
+          properties: settleGrants(properties, attempted, ns.namespace, failed),
+          issues: failed.map((f) => ({ ...f, namespace: ns.namespace })),
+        };
+      });
     },
     [permissionModel, persist, selected, tenancy],
   );
@@ -303,6 +348,7 @@ export function PermissionsView() {
       setDialogOpen(false);
       const id = selected?.id;
       if (id) setEdited((prev) => ({ ...prev, [id]: { ...member, id } }));
+      setUnsaved(null);
       setGrantIssues(issues.length > 0 ? { member, issues } : null);
       reload();
     },
@@ -324,12 +370,26 @@ export function PermissionsView() {
 
   if (!permissionModel) return null;
 
+  // Only a refusal means the account cannot manage permissions; anything
+  // else is a failure to load, which is worth retrying.
   if (catalogue.error) {
-    return (
+    const denied =
+      catalogue.error instanceof IdentityError &&
+      catalogue.error.code === "permission_denied";
+    return denied ? (
       <EmptyState
         title={t("permissions.denied")}
         description={t("permissions.deniedHint")}
       />
+    ) : (
+      <div className="aiw-permissions-error">
+        <div role="alert" className="aiw-error">
+          {t("permissions.catalogueFailed")}
+        </div>
+        <button type="button" className="aiw-button" onClick={catalogue.reload}>
+          {t("common.retry")}
+        </button>
+      </div>
     );
   }
 
@@ -360,7 +420,7 @@ export function PermissionsView() {
   }
 
   const catalogueFor = (ns: string) =>
-    (catalogue.data ?? []).find((entry) => entry.namespace === ns);
+    usable.entries.find((entry) => entry.namespace === ns);
 
   return (
     <div className="aiw-permissions">
@@ -384,6 +444,20 @@ export function PermissionsView() {
         </div>
       )}
 
+      {unsaved && (
+        <div role="alert" className="aiw-error aiw-perm-unsaved">
+          <span>{`${t("permissions.saveFailed")}: ${unsaved.error}`}</span>
+          <button
+            type="button"
+            className="aiw-button"
+            disabled={busy}
+            onClick={() => void retrySave()}
+          >
+            {t("permissions.retrySave")}
+          </button>
+        </div>
+      )}
+
       {grantIssues && (
         <GrantIssuesAlert
           issues={grantIssues.issues}
@@ -392,31 +466,42 @@ export function PermissionsView() {
       )}
 
       <div className="aiw-perm-layout">
-        <MemberList
-          members={list}
-          profiles={resolved}
-          selectedId={selected?.id ?? null}
-          onSelect={setSelectedId}
-        />
+        <div className="aiw-perm-member-column">
+          {members.data?.truncated && (
+            <div role="status" className="aiw-notice">
+              {t("permissions.truncated", { count: String(loaded.length) })}
+            </div>
+          )}
+          <MemberList
+            members={list}
+            profiles={resolved}
+            selectedId={selected?.id ?? null}
+            onSelect={setSelectedId}
+          />
+        </div>
 
         <div className="aiw-perm-panels">
           {selected === null ? (
             <EmptyState title={t("permissions.noMatches")} />
           ) : (
-            permissionModel.namespaces.map((ns) => (
-              <NamespacePanel
-                key={ns.namespace}
-                model={permissionModel}
-                namespace={ns}
-                catalogue={catalogueFor(ns.namespace)}
-                properties={propertiesOf(selected)}
-                memberName={memberName(selected, resolved)}
-                busy={busy}
-                onToggle={handleToggle}
-                onReapply={handleReapply}
-                onChangeBundle={() => setDialogOpen(true)}
-              />
-            ))
+            <>
+              <h2 className="aiw-perm-selected">
+                {memberName(selected, resolved)}
+              </h2>
+              {permissionModel.namespaces.map((ns) => (
+                <NamespacePanel
+                  key={ns.namespace}
+                  model={permissionModel}
+                  namespace={ns}
+                  catalogue={catalogueFor(ns.namespace)}
+                  properties={propertiesOf(selected)}
+                  busy={busy}
+                  onToggle={handleToggle}
+                  onReapply={handleReapply}
+                  onChangeBundle={() => setDialogOpen(true)}
+                />
+              ))}
+            </>
           )}
         </div>
       </div>

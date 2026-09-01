@@ -4,9 +4,11 @@ import {
   diffGrants,
   effectivePermissions,
   expandBundleProperties,
+  settleGrants,
   type MemberProperties,
   type PermissionModel,
 } from "../../permissions/index.js";
+import { withBundles } from "../../components/members/BundleSelect.js";
 import type { ServiceNamespace } from "../../services/tenancy-client.js";
 
 const model: PermissionModel = {
@@ -197,6 +199,56 @@ describe("expandBundleProperties", () => {
     });
   });
 
+  it("lowers platform_role when a member is moved to a lesser bundle", () => {
+    const existing: MemberProperties = {
+      platform_role: "admin",
+      access_bundle: { service_imports: "admin" },
+      permission_grants: {
+        service_imports: ["requests_view", "requests_update", "assign"],
+      },
+    };
+
+    const next = expandBundleProperties(
+      model,
+      { service_imports: "viewer" },
+      existing,
+    );
+
+    expect(next.platform_role).toBe("viewer");
+  });
+
+  it("takes the highest role across every bundle the member holds", () => {
+    // Only the profile namespace is being changed; the operator bundle the
+    // member already holds still has to be covered by the role.
+    const existing: MemberProperties = {
+      platform_role: "operator",
+      access_bundle: { service_imports: "operator" },
+    };
+
+    const next = expandBundleProperties(
+      model,
+      { service_profile: "profile_viewer" },
+      existing,
+    );
+
+    expect(next.platform_role).toBe("operator");
+    expect(next.access_bundle).toEqual({
+      service_imports: "operator",
+      service_profile: "profile_viewer",
+    });
+  });
+
+  it("drops platform_role when no bundle is left", () => {
+    const next = expandBundleProperties(
+      model,
+      {},
+      { platform_role: "admin", access_bundle: {}, note: "keep" },
+    );
+
+    expect("platform_role" in next).toBe(false);
+    expect(next.note).toBe("keep");
+  });
+
   it("ignores selections whose bundle is unknown and keeps the existing role", () => {
     const next = expandBundleProperties(
       model,
@@ -326,5 +378,99 @@ describe("diffGrants", () => {
         "service_imports",
       ),
     ).toEqual({ grant: [], revoke: ["assign"] });
+  });
+});
+
+describe("withBundles", () => {
+  it("clears a namespace and recomputes the role through the same rules", () => {
+    const existing: MemberProperties = {
+      platform_role: "admin",
+      access_bundle: {
+        service_imports: "admin",
+        service_profile: "profile_viewer",
+      },
+      permission_grants: {
+        service_imports: ["team_manage"],
+        service_profile: ["profile_view"],
+      },
+      permission_revokes: { service_imports: ["assign"] },
+    };
+
+    const next = withBundles(
+      model,
+      { service_imports: "", service_profile: "profile_viewer" },
+      existing,
+    );
+
+    expect(next.platform_role).toBe("viewer");
+    expect(next.access_bundle).toEqual({ service_profile: "profile_viewer" });
+    expect(next.permission_grants).toEqual({
+      service_profile: ["profile_view"],
+    });
+    expect(next.permission_revokes).toEqual({});
+  });
+
+  it("removes platform_role when every bundle is cleared", () => {
+    const next = withBundles(
+      model,
+      { service_imports: "" },
+      {
+        platform_role: "admin",
+        access_bundle: { service_imports: "admin" },
+        permission_grants: { service_imports: ["team_manage"] },
+      },
+    );
+
+    expect("platform_role" in next).toBe(false);
+    expect(next.access_bundle).toEqual({});
+  });
+});
+
+describe("settleGrants", () => {
+  const before: MemberProperties = {
+    permission_grants: { service_imports: ["assign", "requests_view"] },
+    permission_revokes: { service_imports: ["team_manage"] },
+  };
+  const attempted: MemberProperties = {
+    permission_grants: {
+      service_imports: ["requests_view", "requests_update", "team_manage"],
+    },
+    permission_revokes: {},
+  };
+
+  it("returns the attempted record when nothing failed", () => {
+    expect(settleGrants(before, attempted, "service_imports", [])).toBe(
+      attempted,
+    );
+  });
+
+  it("drops grants that failed and keeps revokes that failed", () => {
+    const next = settleGrants(before, attempted, "service_imports", [
+      { permission: "requests_update", op: "grant" },
+      { permission: "team_manage", op: "grant" },
+      { permission: "assign", op: "revoke" },
+    ]);
+
+    // `requests_update` never landed; `team_manage` was revoked before, so
+    // the revoke stands; `assign` is still granted because its revoke failed.
+    expect(next.permission_grants).toEqual({
+      service_imports: ["requests_view", "assign"],
+    });
+    expect(next.permission_revokes).toEqual({
+      service_imports: ["team_manage"],
+    });
+  });
+
+  it("keeps a failed grant the member already held", () => {
+    const next = settleGrants(
+      { permission_grants: { service_imports: ["requests_view"] } },
+      { permission_grants: { service_imports: ["requests_view"] } },
+      "service_imports",
+      [{ permission: "requests_view", op: "grant" }],
+    );
+
+    expect(next.permission_grants).toEqual({
+      service_imports: ["requests_view"],
+    });
   });
 });

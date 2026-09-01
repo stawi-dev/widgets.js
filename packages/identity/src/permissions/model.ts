@@ -31,7 +31,7 @@ function listOf(
 }
 
 /** Shallow copy of a namespace-keyed record, with its arrays copied too. */
-function copyLists(
+export function copyLists(
   record: Record<string, string[]> | undefined,
 ): Record<string, string[]> {
   const out: Record<string, string[]> = {};
@@ -42,13 +42,46 @@ function copyLists(
 }
 
 /**
+ * The platform role a member's recorded bundles ask for: the most capable
+ * of them, since the role has to cover every bundle held.
+ *
+ * It is derived from the whole `access_bundle` map rather than raised from
+ * the role already on record, so demoting a member (admin → viewer) or
+ * clearing their bundles actually lowers — or removes — the role identity
+ * applies. A bundle key the model does not describe says nothing about the
+ * role, so the recorded one is kept rather than guessed at.
+ */
+function roleForBundles(
+  model: PermissionModel,
+  accessBundle: Record<string, string>,
+  recorded: string | undefined,
+  sawUnknown: boolean,
+): string | undefined {
+  if (sawUnknown) return recorded;
+  const entries = Object.entries(accessBundle);
+  if (entries.length === 0) return undefined;
+
+  let role: string | undefined;
+  for (const [ns, key] of entries) {
+    const bundle = bundleFor(model, ns, key);
+    if (!bundle) return recorded;
+    if (rank(bundle.platformRole) > rank(role)) role = bundle.platformRole;
+  }
+  return role;
+}
+
+/**
  * Applies a bundle selection (namespace → bundle key) to a member's
  * properties: records the bundles, sets `platform_role` to the highest
- * role the selected bundles ask for, replaces the grants of the selected
+ * role the *held* bundles ask for, replaces the grants of the selected
  * namespaces with their bundle's permissions, and clears any revokes
  * recorded against them. Namespaces outside the selection — and any host
  * property — are carried through untouched. Selections naming an unknown
  * bundle are ignored.
+ *
+ * A member left holding no bundle at all loses `platform_role` entirely:
+ * the property is the widget's own record of what the bundles imply, and
+ * leaving a stale role behind would keep granting access nobody chose.
  */
 export function expandBundleProperties(
   model: PermissionModel,
@@ -59,19 +92,31 @@ export function expandBundleProperties(
   const grants = copyLists(existing.permission_grants);
   const revokes = copyLists(existing.permission_revokes);
 
-  let role = existing.platform_role;
+  let sawUnknown = false;
   for (const [ns, key] of Object.entries(selection)) {
     const bundle = bundleFor(model, ns, key);
-    if (!bundle) continue;
+    if (!bundle) {
+      // The selection means something the model cannot explain; leaving the
+      // role alone is safer than deriving one from a half-understood record.
+      sawUnknown = true;
+      continue;
+    }
     accessBundle[ns] = bundle.key;
     grants[ns] = [...bundle.permissions];
     delete revokes[ns];
-    // The most capable bundle wins when a member holds several.
-    if (rank(bundle.platformRole) > rank(role)) role = bundle.platformRole;
   }
 
+  const role = roleForBundles(
+    model,
+    accessBundle,
+    existing.platform_role,
+    sawUnknown,
+  );
+  const rest = { ...existing };
+  delete rest.platform_role;
+
   return {
-    ...existing,
+    ...rest,
     ...(role === undefined ? {} : { platform_role: role }),
     access_bundle: accessBundle,
     permission_grants: grants,
@@ -143,5 +188,121 @@ export function diffGrants(
   return {
     grant: [...after].filter((p) => !before.has(p)).sort(),
     revoke: [...before].filter((p) => !after.has(p)).sort(),
+  };
+}
+
+/** Drops namespaces whose list is empty, so the record stays tidy. */
+export function prune(
+  record: Record<string, string[]>,
+): Record<string, string[]> {
+  for (const [key, value] of Object.entries(record)) {
+    if (value.length === 0) delete record[key];
+  }
+  return record;
+}
+
+/**
+ * The member record after one permission is switched.
+ *
+ * Turning a permission on always records a grant and clears any revoke.
+ * Turning one off always drops the grant, and records a revoke unless the
+ * permission was only ever an override — a bundle permission (and one the
+ * platform role carries) needs the revoke to remember the admin's intent.
+ */
+export function togglePermission(
+  properties: MemberProperties,
+  namespace: string,
+  row: EffectivePermission,
+  on: boolean,
+): MemberProperties {
+  const grants = copyLists(properties.permission_grants);
+  const revokes = copyLists(properties.permission_revokes);
+  const add = (record: Record<string, string[]>) => {
+    record[namespace] = [
+      ...(record[namespace] ?? []).filter((p) => p !== row.permission),
+      row.permission,
+    ];
+  };
+  const drop = (record: Record<string, string[]>) => {
+    const list = record[namespace];
+    if (list) record[namespace] = list.filter((p) => p !== row.permission);
+  };
+
+  if (on) {
+    add(grants);
+    drop(revokes);
+  } else {
+    drop(grants);
+    if (row.source !== "granted") add(revokes);
+  }
+
+  return {
+    ...properties,
+    permission_grants: prune(grants),
+    permission_revokes: prune(revokes),
+  };
+}
+
+/** The member record after a bundle is re-applied: its set, and no overrides. */
+export function reapplyBundle(
+  properties: MemberProperties,
+  namespace: string,
+  bundle: AccessBundle,
+): MemberProperties {
+  const grants = copyLists(properties.permission_grants);
+  const revokes = copyLists(properties.permission_revokes);
+  grants[namespace] = [...bundle.permissions];
+  delete revokes[namespace];
+  return {
+    ...properties,
+    permission_grants: prune(grants),
+    permission_revokes: prune(revokes),
+  };
+}
+
+/** One tenancy write that did not land, as `applyGrants` reports it. */
+interface FailedWrite {
+  permission: string;
+  op: "grant" | "revoke";
+}
+
+/**
+ * The record to persist when a plan only partly landed: `attempted` is what
+ * the admin asked for, `before` what the member held, and `failed` the
+ * writes tenancy refused. Permissions whose grant failed are dropped again
+ * (unless they were already held, in which case tenancy still has them),
+ * and permissions whose revoke failed stay recorded — so the record keeps
+ * saying what tenancy actually holds rather than what was hoped for.
+ */
+export function settleGrants(
+  before: MemberProperties,
+  attempted: MemberProperties,
+  namespace: string,
+  failed: readonly FailedWrite[],
+): MemberProperties {
+  if (failed.length === 0) return attempted;
+
+  const held = new Set(listOf(before.permission_grants, namespace));
+  const revokedBefore = new Set(listOf(before.permission_revokes, namespace));
+  const grants = copyLists(attempted.permission_grants);
+  const revokes = copyLists(attempted.permission_revokes);
+  const list = new Set(grants[namespace] ?? []);
+  const kept = new Set(revokes[namespace] ?? []);
+
+  for (const { permission, op } of failed) {
+    if (op === "grant") {
+      if (!held.has(permission)) list.delete(permission);
+      if (revokedBefore.has(permission)) kept.add(permission);
+    } else {
+      list.add(permission);
+    }
+  }
+
+  grants[namespace] = [...list];
+  revokes[namespace] = [...kept];
+  return {
+    ...attempted,
+    permission_grants: prune(grants),
+    permission_revokes: prune(revokes),
   };
 }

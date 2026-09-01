@@ -13,4 +13,7 @@ export {
   diffGrants,
   effectivePermissions,
   expandBundleProperties,
+  reapplyBundle,
+  settleGrants,
+  togglePermission,
 } from "./model.js";

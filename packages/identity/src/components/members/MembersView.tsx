@@ -53,6 +53,8 @@ export function MembersView() {
   const [editing, setEditing] = useState<WorkforceMember | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  /** True while an activate/deactivate round trip is in flight. */
+  const [stateBusy, setStateBusy] = useState(false);
   const [grantIssues, setGrantIssues] = useState<{
     member: WorkforceMember;
     issues: GrantIssue[];
@@ -128,6 +130,9 @@ export function MembersView() {
     async (member: WorkforceMember, state: State) => {
       setActionError(null);
       setGrantIssues(null);
+      // Grants and the record are written in a fixed order; a second click
+      // partway through would interleave the two runs.
+      setStateBusy(true);
       try {
         // Activating grants after the record is written, so a member is
         // never live in tenancy without an active record; deactivating
@@ -159,6 +164,8 @@ export function MembersView() {
       } catch (err) {
         setActionError(err instanceof Error ? err.message : String(err));
         hooks.onError?.(err);
+      } finally {
+        setStateBusy(false);
       }
     },
     [client, hooks, onMemberChange, recordedPlans, reload, tenancy],
@@ -275,6 +282,7 @@ export function MembersView() {
           showHomeUnit={orgUnits}
           showPlatformRole={platformRoles}
           permissionModel={permissionModel}
+          busy={stateBusy}
           onActivate={(m) => void setMemberState(m, "ACTIVE")}
           onDeactivate={(m) => void setMemberState(m, "INACTIVE")}
           onEdit={openEdit}

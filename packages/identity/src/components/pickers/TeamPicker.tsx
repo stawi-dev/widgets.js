@@ -45,9 +45,9 @@ export function TeamPicker({
       }
     >
       <option value="">{placeholder}</option>
-      {directory.teams.map((t) => (
-        <option key={t.id} value={t.id}>
-          {t.name}
+      {directory.teams.map((team) => (
+        <option key={team.id} value={team.id}>
+          {team.name}
         </option>
       ))}
     </select>

@@ -7,6 +7,10 @@ describe("package entry points", () => {
     expect(typeof identity.decodeConnectStream).toBe("function");
     expect(typeof identity.createProfileResolver).toBe("function");
     expect(new identity.IdentityError("x", "y")).toBeInstanceOf(Error);
+    // The grant helpers a host needs to retry a partial apply of its own.
+    expect(typeof identity.applyGrantPlans).toBe("function");
+    expect(typeof identity.nonEmptyPlans).toBe("function");
+    expect(typeof identity.retryGrantIssues).toBe("function");
   });
 
   it("exports the widget entry points", () => {

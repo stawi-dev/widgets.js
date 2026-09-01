@@ -1,7 +1,29 @@
 import type { AuthRuntime } from "@stawi/auth-runtime";
-import { fromConnectError, toIdentityError } from "./errors.js";
+import { fromConnectError, identityError, toIdentityError } from "./errors.js";
 
 const SERVICE = "tenancy.v1.TenancyService";
+
+/**
+ * Namespaces and permissions are lower-snake identifiers on the platform
+ * side. Anything else is a host mistake — a label, a path, an interpolated
+ * `undefined` — and must never reach the wire, where it would either 400 or,
+ * worse, write a tuple nothing can read back.
+ */
+const IDENTIFIER = /^[a-z][a-z0-9_]*$/;
+
+/** True when `value` is a well-formed namespace or permission name. */
+export function isPermissionIdentifier(value: unknown): value is string {
+  return typeof value === "string" && IDENTIFIER.test(value);
+}
+
+function assertIdentifier(field: string, value: string): void {
+  if (!isPermissionIdentifier(value)) {
+    throw identityError(
+      "invalid_argument",
+      `${field} must match ${IDENTIFIER.source}, got ${JSON.stringify(value)}`,
+    );
+  }
+}
 
 /** Permissions a `StandardRole` carries in a namespace, from the catalogue. */
 export interface RoleBinding {
@@ -74,16 +96,24 @@ export function createTenancyClient(deps: TenancyClientDeps): TenancyClient {
     return res ?? {};
   }
 
+  /** Rejects a malformed mutation before any request is made. */
+  function check(p: PermissionMutation): void {
+    assertIdentifier("namespace", p.namespace);
+    assertIdentifier("permission", p.permission);
+  }
+
   return {
     async listServiceNamespaces() {
       const res = await unary<ServiceNamespace[]>("ListServiceNamespaces", {});
       return res.data ?? [];
     },
     async grantPermission(p) {
+      check(p);
       // The response body carries nothing the caller needs: any 2xx is success.
       await unary("GrantPermission", p);
     },
     async revokePermission(p) {
+      check(p);
       await unary("RevokePermission", p);
     },
   };

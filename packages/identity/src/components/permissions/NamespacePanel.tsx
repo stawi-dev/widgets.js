@@ -48,8 +48,6 @@ interface NamespacePanelProps {
   /** The catalogue entry for this namespace, when the service returned one. */
   catalogue?: ServiceNamespace;
   properties: MemberProperties;
-  /** Display name of the selected member. */
-  memberName: string;
   /** True while a write for this member is in flight. */
   busy: boolean;
   onToggle: (
@@ -67,7 +65,6 @@ export function NamespacePanel({
   namespace,
   catalogue,
   properties,
-  memberName,
   busy,
   onToggle,
   onReapply,
@@ -95,8 +92,7 @@ export function NamespacePanel({
   return (
     <section className="aiw-perm-namespace">
       <div className="aiw-perm-namespace-header">
-        <span className="aiw-perm-namespace-title">{memberName}</span>
-        <span className="aiw-perm-namespace-scope">{namespace.label}</span>
+        <span className="aiw-perm-namespace-title">{namespace.label}</span>
         <span className="aiw-perm-bundle">
           {bundle?.label ?? t("permissions.bundle.none")}
         </span>
