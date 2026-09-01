@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { VocabularyOption } from "../vocabulary/index.js";
 import {
   generalVocabulary,
   fintechVocabulary,
@@ -38,6 +39,38 @@ describe("vocabulary presets", () => {
         "ORGANIZATION_TYPE_SERVICES",
       ]),
     );
+  });
+
+  it("fintech labels SACCO and NGO as uppercase acronyms", () => {
+    const byValue = Object.fromEntries(
+      fintechVocabulary.organizationTypes.map((o) => [o.value, o.label]),
+    );
+    expect(byValue.ORGANIZATION_TYPE_SACCO).toBe("SACCO");
+    expect(byValue.ORGANIZATION_TYPE_NGO).toBe("NGO");
+  });
+
+  it("presets and their nested collections are frozen", () => {
+    for (const vocabulary of Object.values(presets)) {
+      expect(Object.isFrozen(vocabulary)).toBe(true);
+      expect(Object.isFrozen(vocabulary.organizationTypes)).toBe(true);
+      expect(Object.isFrozen(vocabulary.organizationTypes[0])).toBe(true);
+      expect(Object.isFrozen(vocabulary.teamTypes)).toBe(true);
+      expect(Object.isFrozen(vocabulary.teamTypes[0])).toBe(true);
+      expect(Object.isFrozen(vocabulary.membershipRoles)).toBe(true);
+      expect(Object.isFrozen(vocabulary.membershipRoles[0])).toBe(true);
+      expect(Object.isFrozen(vocabulary.engagementTypes)).toBe(true);
+      expect(Object.isFrozen(vocabulary.roleKeys)).toBe(true);
+      expect(Object.isFrozen(vocabulary.roleKeys[0])).toBe(true);
+      expect(Object.isFrozen(vocabulary.platformRoles)).toBe(true);
+      expect(Object.isFrozen(vocabulary.labels)).toBe(true);
+
+      expect(() =>
+        (vocabulary.membershipRoles as unknown as VocabularyOption[]).push({
+          value: "intruder",
+          label: "Intruder",
+        }),
+      ).toThrow(TypeError);
+    }
   });
 
   it("fintech role keys retain the three fintech roles", () => {
@@ -108,5 +141,30 @@ describe("mergeVocabulary", () => {
     expect(merged.roleKeys).toEqual([{ key: "custom_role", label: "Custom" }]);
     expect(merged.organizationTypes).toBe(generalVocabulary.organizationTypes);
     expect(merged.membershipRoles).toBe(generalVocabulary.membershipRoles);
+  });
+
+  it("returns a frozen merged vocabulary and a frozen merged labels object", () => {
+    const merged = mergeVocabulary(generalVocabulary, {
+      labels: { members: "Employees" },
+    });
+    expect(Object.isFrozen(merged)).toBe(true);
+    expect(Object.isFrozen(merged.labels)).toBe(true);
+  });
+
+  it("never aliases a mutable override array back into the shared preset", () => {
+    const override: VocabularyOption[] = [
+      { value: "sourcing", label: "Sourcing" },
+    ];
+    const merged = mergeVocabulary(generalVocabulary, { teamTypes: override });
+
+    // Mutating the host's own override array after the fact must not
+    // reach back into the frozen preset constant.
+    override.push({ value: "extra", label: "Extra" });
+
+    expect(merged.teamTypes).not.toBe(generalVocabulary.teamTypes);
+    expect(generalVocabulary.teamTypes.map((t) => t.value)).not.toContain(
+      "sourcing",
+    );
+    expect(Object.isFrozen(generalVocabulary.teamTypes)).toBe(true);
   });
 });
