@@ -195,6 +195,13 @@ features={{ orgUnits: true, platformRoles: false }}
 - `platformRoles` (default `true`) — shows the platform-role column and
   field, stored in the member's `properties.platform_role`.
 
+A `permissionModel` adds a **Permissions** tab: pick a member and switch any
+permission the tenancy catalogue registers, on top of the bundle they hold.
+Each row says why it is on — _Bundle_, _Granted_, _Revoked_, _Role_ — and a
+"Reapply bundle" action drops every override. The tab is hidden when no model
+is configured, and the screen shows an empty state when the signed-in
+administrator may not manage grants.
+
 ## Theming
 
 Themes are CSS custom properties on the widget host. `theme` picks the

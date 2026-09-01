@@ -17,6 +17,7 @@ import { MembersView } from "./members/MembersView.js";
 import { TeamsView } from "./teams/TeamsView.js";
 import { RolesView } from "./roles/RolesView.js";
 import { UnitsView } from "./units/UnitsView.js";
+import { PermissionsView } from "./permissions/PermissionsView.js";
 import { themedTokenSheet } from "../themes/apply.js";
 import type { IdentityView, IdentityWidgetProps } from "../types.js";
 
@@ -194,7 +195,13 @@ interface IdentityTabsProps {
 }
 
 function IdentityTabs({ initialView, pinned }: IdentityTabsProps) {
-  const { vocabulary, features, organization, setOrganization } = useIdentity();
+  const {
+    vocabulary,
+    features,
+    permissionModel,
+    organization,
+    setOrganization,
+  } = useIdentity();
   const t = useT();
   const baseId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -218,6 +225,15 @@ function IdentityTabs({ initialView, pinned }: IdentityTabsProps) {
         render: () => <RolesView />,
       },
     ];
+    // Permissions edit what a bundle grants, so the tab only makes sense
+    // when the host declared a model.
+    if (permissionModel) {
+      list.push({
+        view: "permissions",
+        label: labels.permissions ?? "Permissions",
+        render: () => <PermissionsView />,
+      });
+    }
     if (features.orgUnits) {
       list.push({
         view: "units",
@@ -226,7 +242,7 @@ function IdentityTabs({ initialView, pinned }: IdentityTabsProps) {
       });
     }
     return list;
-  }, [vocabulary.labels, features.orgUnits]);
+  }, [vocabulary.labels, features.orgUnits, permissionModel]);
 
   // An `initialView` naming a flagged-off screen falls back to the first tab
   // rather than rendering nothing.

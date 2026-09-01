@@ -38,7 +38,15 @@ export interface IdentityVocabulary {
   }>;
   readonly labels?: Readonly<
     Partial<
-      Record<"members" | "teams" | "roles" | "units" | "organization", string>
+      Record<
+        | "members"
+        | "teams"
+        | "roles"
+        | "permissions"
+        | "units"
+        | "organization",
+        string
+      >
     >
   >;
 }

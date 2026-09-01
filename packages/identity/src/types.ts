@@ -4,7 +4,8 @@ import type { PermissionModel } from "./permissions/types.js";
 import type { IdentityWidgetThemedTokens } from "./themes/types.js";
 
 /** The tab a host can land the widget on. */
-export type IdentityView = "members" | "teams" | "roles" | "units";
+export type IdentityView =
+  "members" | "teams" | "roles" | "permissions" | "units";
 
 /** Lifecycle state shared by every identity record. */
 export type State = "CREATED" | "CHECKED" | "ACTIVE" | "INACTIVE" | "DELETED";

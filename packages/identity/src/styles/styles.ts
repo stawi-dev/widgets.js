@@ -391,6 +391,7 @@ const BASE_RULES = `
 /* --- Toolbars and layouts --- */
 
 .aiw-members-toolbar,
+.aiw-permissions-toolbar,
 .aiw-teams-toolbar,
 .aiw-roles-toolbar,
 .aiw-units-toolbar {
@@ -401,12 +402,14 @@ const BASE_RULES = `
 }
 
 .aiw-members-toolbar .aiw-input,
+.aiw-permissions-toolbar .aiw-input,
 .aiw-teams-toolbar .aiw-input {
   flex: 1 1 220px;
   width: auto;
 }
 
 .aiw-members,
+.aiw-permissions,
 .aiw-teams,
 .aiw-roles,
 .aiw-units {
@@ -460,6 +463,7 @@ const BASE_RULES = `
 }
 
 .aiw-members-error,
+.aiw-permissions-error,
 .aiw-teams-error,
 .aiw-roles-error,
 .aiw-units-error,
@@ -469,6 +473,138 @@ const BASE_RULES = `
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+}
+
+/* --- Permissions --- */
+
+.aiw-perm-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.aiw-perm-members {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.aiw-perm-member {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--aiw-radius-sm);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 6px 8px;
+  text-align: start;
+  width: 100%;
+}
+
+.aiw-perm-member:hover {
+  background: var(--aiw-muted);
+}
+
+.aiw-perm-member[aria-current="true"] {
+  background: var(--aiw-muted-strong);
+  border-color: var(--aiw-border);
+}
+
+.aiw-perm-member-state {
+  color: var(--aiw-text-secondary);
+  font-size: 0.85em;
+}
+
+.aiw-perm-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aiw-perm-namespace {
+  background: var(--aiw-surface);
+  border: 1px solid var(--aiw-border);
+  border-radius: var(--aiw-radius);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.aiw-perm-namespace-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aiw-perm-namespace-title {
+  font-family: var(--aiw-font-heading);
+  font-weight: var(--aiw-font-weight-heading);
+}
+
+.aiw-perm-namespace-scope,
+.aiw-perm-bundle {
+  color: var(--aiw-text-secondary);
+  font-size: 0.9em;
+}
+
+.aiw-perm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aiw-perm-group-title {
+  color: var(--aiw-text-secondary);
+  font-size: 0.85em;
+  letter-spacing: 0.04em;
+  margin: 6px 0 2px;
+  text-transform: uppercase;
+}
+
+.aiw-perm-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.aiw-perm-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.aiw-perm-tag {
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.aiw-perm-tag-bundle,
+.aiw-perm-tag-none,
+.aiw-perm-tag-role {
+  background: var(--aiw-muted);
+  color: var(--aiw-text-secondary);
+}
+
+.aiw-perm-tag-granted {
+  background: var(--aiw-muted-strong);
+  color: var(--aiw-primary);
+}
+
+.aiw-perm-tag-revoked,
+.aiw-perm-tag-warn {
+  background: var(--aiw-muted-strong);
+  color: var(--aiw-danger);
 }
 
 /* --- Organization gate --- */
@@ -710,7 +846,8 @@ const BASE_RULES = `
 
 @media (max-width: 768px) {
   .aiw-teams-layout,
-  .aiw-roles-layout {
+  .aiw-roles-layout,
+  .aiw-perm-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
