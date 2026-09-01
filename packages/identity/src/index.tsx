@@ -211,3 +211,11 @@ export type {
   PermissionSource,
   PlatformRole,
 } from "./permissions/index.js";
+export { MemberPicker, TeamPicker, useIdentityDirectory } from "./pickers.js";
+export type {
+  DirectoryMember,
+  IdentityDirectory,
+  MemberPickerProps,
+  TeamPickerProps,
+  UseIdentityDirectoryOptions,
+} from "./pickers.js";

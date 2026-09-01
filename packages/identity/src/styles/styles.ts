@@ -236,6 +236,16 @@ const BASE_RULES = `
   border-color: var(--aiw-primary);
 }
 
+/* Host-facing pickers: a plain select that doesn't stretch to the width
+   of whatever container the host drops it into. */
+.aiw-picker {
+  max-width: 320px;
+}
+
+.aiw-picker[aria-busy="true"] {
+  opacity: 0.6;
+}
+
 .aiw-field {
   display: flex;
   flex-direction: column;

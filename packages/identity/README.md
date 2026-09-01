@@ -38,6 +38,8 @@ tag's `data-*` attributes and also publishes `window.StawiIdentity`:
 | `data-idp-base-url`              |          | Identity provider base URL                                                                                   |
 | `data-logout-redirect-uri`       |          | Post-logout redirect                                                                                         |
 | `data-profile-api-base-url`      |          | Profile service base; defaults to `data-api-base-url` with its last path segment replaced by `/profile`      |
+| `data-tenancy-api-base-url`      |          | Tenancy service base; defaults to `data-api-base-url` with its last path segment replaced by `/tenancy`      |
+| `data-permission-model`          |          | JSON permission model (namespaces, bundles) — enables the Permissions tab                                    |
 | `data-organization-id`           |          | Pin one organisation and hide the picker                                                                     |
 | `data-allow-create-organization` |          | `false` hides the create form                                                                                |
 | `data-vocabulary`                |          | A preset name (`general`, `fintech`, `commerce`, `manufacturing`) **or** a JSON object merged over `general` |
@@ -46,7 +48,7 @@ tag's `data-*` attributes and also publishes `window.StawiIdentity`:
 | `data-css`                       |          | Raw CSS appended after the widget stylesheet and the tokens                                                  |
 | `data-theme`                     |          | `light`, `dark` or `auto` (default)                                                                          |
 | `data-locale`                    |          | BCP-47 locale; `en` and `sw` ship                                                                            |
-| `data-initial-view`              |          | `members`, `teams`, `roles` or `units`                                                                       |
+| `data-initial-view`              |          | `members`, `teams`, `roles`, `permissions` or `units`                                                        |
 
 ## `mount()`
 
@@ -122,19 +124,22 @@ on one page can carry different themes and neither leaks onto your page.
 
 ### Props
 
-| Prop                                         | Default                                    | Notes                                                                                                |
-| -------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `apiBaseUrl`                                 | —                                          | **Required.** Identity service base URL                                                              |
-| `runtime`                                    | —                                          | Recommended. Otherwise built from `installationId` / `clientId` / `idpBaseUrl` / `logoutRedirectUri` |
-| `profileApiBaseUrl`                          | derived                                    | `apiBaseUrl` with its last path segment replaced by `/profile`                                       |
-| `organizationId`                             | —                                          | Pin one organisation; hides the switcher                                                             |
-| `allowCreateOrganization`                    | `true`                                     | Offer the create form when the caller has no organisation                                            |
-| `vocabulary`                                 | `generalVocabulary`                        | Merged over the general preset                                                                       |
-| `features`                                   | `{ orgUnits: false, platformRoles: true }` | Optional screens                                                                                     |
-| `initialView`                                | first tab                                  | Ignored when the named view is disabled                                                              |
-| `theme` / `tokens` / `css`                   | `auto`                                     | See [Theming](#theming)                                                                              |
-| `locale`                                     | `en`                                       | `en` and `sw` ship; RTL locales set `dir="rtl"`                                                      |
-| `onError` / `onAuthStateChange` / `onMetric` | —                                          | Host hooks                                                                                           |
+| Prop                                         | Default                                    | Notes                                                                                                                               |
+| -------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `apiBaseUrl`                                 | —                                          | **Required.** Identity service base URL                                                                                             |
+| `runtime`                                    | —                                          | Recommended. Otherwise built from `installationId` / `clientId` / `idpBaseUrl` / `logoutRedirectUri`                                |
+| `profileApiBaseUrl`                          | derived                                    | `apiBaseUrl` with its last path segment replaced by `/profile`                                                                      |
+| `tenancyApiBaseUrl`                          | derived                                    | `apiBaseUrl` with its last path segment replaced by `/tenancy`                                                                      |
+| `permissionModel`                            | —                                          | Bundles per namespace; adds the Permissions tab. See [Permission model](#permission-model-and-bundles)                              |
+| `organizationId`                             | —                                          | Pin one organisation; hides the switcher                                                                                            |
+| `allowCreateOrganization`                    | `true`                                     | Offer the create form when the caller has no organisation                                                                           |
+| `vocabulary`                                 | `generalVocabulary`                        | Merged over the general preset                                                                                                      |
+| `features`                                   | `{ orgUnits: false, platformRoles: true }` | Optional screens                                                                                                                    |
+| `initialView`                                | first tab                                  | Ignored when the named view is disabled                                                                                             |
+| `theme` / `tokens` / `css`                   | `auto`                                     | See [Theming](#theming)                                                                                                             |
+| `locale`                                     | `en`                                       | `en` and `sw` ship; RTL locales set `dir="rtl"`                                                                                     |
+| `onError` / `onAuthStateChange` / `onMetric` | —                                          | Host hooks                                                                                                                          |
+| `onMemberChange`                             | —                                          | Fires after every member write: `{ member, change }` where `change` is `created`, `updated`, `activated`, `deactivated` or `grants` |
 
 ## Vocabulary
 
@@ -195,12 +200,147 @@ features={{ orgUnits: true, platformRoles: false }}
 - `platformRoles` (default `true`) — shows the platform-role column and
   field, stored in the member's `properties.platform_role`.
 
-A `permissionModel` adds a **Permissions** tab: pick a member and switch any
-permission the tenancy catalogue registers, on top of the bundle they hold.
-Each row says why it is on — _Bundle_, _Granted_, _Revoked_, _Role_ — and a
-"Reapply bundle" action drops every override. The tab is hidden when no model
-is configured, and the screen shows an empty state when the signed-in
-administrator may not manage grants.
+A `permissionModel` adds a **Permissions** tab — see
+[Permission model and bundles](#permission-model-and-bundles).
+
+## Permission model and bundles
+
+Hosts describe the access they sell in _bundles_: a named permission set per
+service namespace, each mapped to the platform role the member is activated
+with.
+
+```ts
+<IdentityWidgetRoot
+  runtime={runtime}
+  apiBaseUrl="https://api.stawi.org/identity"
+  permissionModel={{
+    namespaces: [
+      {
+        namespace: "service_imports",
+        label: "Imports",
+        groups: { quotes: "Quotes", payments: "Payments" },
+        bundles: [
+          {
+            key: "sales",
+            label: "Sales",
+            platformRole: "member",
+            permissions: ["requests_view", "quotes_create", "assign"],
+          },
+          {
+            key: "sales_agent",
+            label: "Sales agent (own team)",
+            platformRole: "member",
+            scoped: true,
+            permissions: ["requests_view", "quotes_create"],
+          },
+        ],
+      },
+    ],
+  }}
+  onMemberChange={({ member, change }) => reload(member, change)}
+/>;
+```
+
+With a model configured:
+
+- The member dialog offers the bundle select instead of the platform-role
+  field, and **activating** a member applies that bundle's permissions
+  through the tenancy service. Deactivating revokes them.
+- Changing a bundle diffs the two sets, so only the difference is granted or
+  revoked.
+- A **Permissions** tab appears: pick a member and switch any permission the
+  tenancy catalogue registers, on top of the bundle they hold. Each row says
+  why it is on — _Bundle_, _Granted_, _Revoked_, _Role_ — and a "Reapply
+  bundle" action drops every override.
+- The choices are persisted on the member's `properties`:
+  `platform_role`, `access_bundle` (namespace → bundle key),
+  `permission_grants` and `permission_revokes` (namespace → permissions).
+  Any other property the host stores is preserved untouched.
+- A tenancy call that fails does **not** roll back the member write. The
+  screen keeps the failures visible with a retry, so a partial grant is
+  something you can see and finish rather than a silent gap.
+- `onMemberChange` fires after every member write the widget makes, so a
+  host page can refresh its own view of the workforce.
+
+Bundles are the host's vocabulary, not the widget's: nothing here is
+hard-coded to a particular service.
+
+### Tenancy audience requirement
+
+Grants go to the platform tenancy service — by default `apiBaseUrl` with its
+last path segment replaced by `/tenancy`, overridable with
+`tenancyApiBaseUrl`. Three things must line up, or grants fail while the rest
+of the widget keeps working:
+
+1. The auth runtime must be allowed to send tokens to that origin
+   (`allowedApiOrigins`, see [Cross-origin API access](#cross-origin-api-access)).
+2. The signed-in client must hold a token for the **tenancy audience**
+   (`https://api.stawi.org/tenancy`) — the same seeding as the `/identity`
+   audience.
+3. The signed-in administrator needs `service_tenancy:permission_grant`,
+   which the platform `admin` role carries.
+
+When the caller may not manage grants the Permissions screen shows an empty
+state instead of a broken table, and bundle changes report the refused
+grants rather than pretending they landed.
+
+## Pickers and the directory hook
+
+Hosts that build their own assignment controls — "who owns this request?",
+"which team handles it?" — need the same lookups the widget does. Rather than
+re-implement paging and profile-name resolution, take them from
+`useIdentityDirectory`, and render either of the two pickers:
+
+```tsx
+import {
+  useIdentityDirectory,
+  MemberPicker,
+  TeamPicker,
+} from "@stawi/identity";
+
+function AssignControls({ requestId }: { requestId: string }) {
+  const directory = useIdentityDirectory({
+    runtime,
+    apiBaseUrl: "https://api.stawi.org/identity",
+    organizationId: orgId,
+  });
+
+  return (
+    <>
+      <MemberPicker
+        directory={directory}
+        value={assigneeProfileId}
+        placeholder="Unassigned"
+        onChange={(profileId) => assign(requestId, profileId)}
+      />
+      <TeamPicker
+        directory={directory}
+        value={teamId}
+        onChange={(id) => setTeam(requestId, id)}
+      />
+      <span>{directory.resolveName(assigneeProfileId)}</span>
+    </>
+  );
+}
+```
+
+`useIdentityDirectory({ runtime, apiBaseUrl, profileApiBaseUrl?,
+organizationId, ttlMs? })` returns
+`{ members, teams, loading, error?, resolveName, refresh }`. Members carry
+the resolved `name` and `email` when the caller may read profiles, and
+`resolveName()` falls back to the raw profile id when it may not. Snapshots
+are cached per organisation for `ttlMs` (default 60 000), and the cache holds
+the in-flight promise — so ten pickers on one page cost one round of
+requests, not ten. `refresh()` drops the cached snapshot and loads again,
+e.g. after your own code adds a member.
+
+`MemberPicker` offers active members only unless you pass
+`activeOnly={false}`, labels rows by name (profile id when unknown), and
+reports `undefined` when the empty option is chosen. `TeamPicker` is the
+same shape over teams. Both are light-DOM `<select>` elements carrying the
+`aiw-select aiw-picker` classes, so they inherit
+[`widgetStylesFor()`](#react-usage) when you inject it and stay plain,
+styleable selects when you don't.
 
 ## Theming
 
