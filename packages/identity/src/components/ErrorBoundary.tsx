@@ -2,6 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
+  /** Host hook, called once with the error that tore the tree down. */
+  onError?: (err: unknown) => void;
 }
 
 interface State {
@@ -17,6 +19,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[stawi/identity] Error:", error, info.componentStack);
+    this.props.onError?.(error);
   }
 
   render() {

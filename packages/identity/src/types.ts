@@ -1,3 +1,10 @@
+import type { AuthRuntime, AuthState } from "@stawi/auth-runtime";
+import type { IdentityVocabulary } from "./vocabulary/types.js";
+import type { IdentityWidgetThemedTokens } from "./themes/types.js";
+
+/** The tab a host can land the widget on. */
+export type IdentityView = "members" | "teams" | "roles" | "units";
+
 /** Lifecycle state shared by every identity record. */
 export type State = "CREATED" | "CHECKED" | "ACTIVE" | "INACTIVE" | "DELETED";
 
@@ -104,4 +111,52 @@ export interface AccessRoleAssignment {
 export interface PageCursor {
   limit?: number;
   page?: string;
+}
+
+/**
+ * Everything a host can configure on the widget. `mount()` accepts these
+ * plus a `target`; React hosts spread them onto `<IdentityWidgetRoot />`.
+ */
+export interface IdentityWidgetProps {
+  /**
+   * A pre-built runtime, shared with the rest of the host page so every
+   * island reads the same token store. Recommended. When omitted, the
+   * widget builds its own from `installationId` / `clientId` / `idpBaseUrl`.
+   */
+  runtime?: AuthRuntime;
+  installationId?: string;
+  clientId?: string;
+  idpBaseUrl?: string;
+  logoutRedirectUri?: string;
+  /** Identity service base, e.g. `https://api.stawi.org/identity`. */
+  apiBaseUrl: string;
+  /**
+   * Profile service base, used for name resolution and invite-by-contact.
+   * Defaults to `apiBaseUrl` with its last path segment replaced by
+   * `/profile`.
+   */
+  profileApiBaseUrl?: string;
+  /** Pin one organization instead of showing the picker. */
+  organizationId?: string;
+  /** Offer the create form when the caller belongs to no organization. */
+  allowCreateOrganization?: boolean;
+  /** Merged over `generalVocabulary`. */
+  vocabulary?: Partial<IdentityVocabulary>;
+  /** Optional screens. Defaults: `orgUnits` off, `platformRoles` on. */
+  features?: { orgUnits?: boolean; platformRoles?: boolean };
+  /** Tab shown first. Ignored when the named view is disabled. */
+  initialView?: IdentityView;
+  theme?: "light" | "dark" | "auto";
+  tokens?: IdentityWidgetThemedTokens;
+  /** Raw CSS appended last, so it wins over the widget stylesheet. */
+  css?: string;
+  /** BCP-47 locale. `en` and `sw` ship; RTL locales set `dir="rtl"`. */
+  locale?: string;
+  onError?: (err: unknown) => void;
+  onAuthStateChange?: (state: AuthState) => void;
+  onMetric?: (
+    name: string,
+    durationMs: number,
+    tags: Record<string, string>,
+  ) => void;
 }

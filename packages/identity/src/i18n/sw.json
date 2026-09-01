@@ -168,5 +168,7 @@
   "unitType.ORG_UNIT_TYPE_AREA": "Eneo",
   "unitType.ORG_UNIT_TYPE_CLUSTER": "Kundi",
   "unitType.ORG_UNIT_TYPE_BRANCH": "Tawi",
-  "unitType.ORG_UNIT_TYPE_OTHER": "Nyingine"
+  "unitType.ORG_UNIT_TYPE_OTHER": "Nyingine",
+  "org.switch": "Badilisha shirika",
+  "nav.views": "Mionekano ya utambulisho"
 }

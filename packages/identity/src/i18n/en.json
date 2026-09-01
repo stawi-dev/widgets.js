@@ -174,5 +174,7 @@
   "unitType.ORG_UNIT_TYPE_AREA": "Area",
   "unitType.ORG_UNIT_TYPE_CLUSTER": "Cluster",
   "unitType.ORG_UNIT_TYPE_BRANCH": "Branch",
-  "unitType.ORG_UNIT_TYPE_OTHER": "Other"
+  "unitType.ORG_UNIT_TYPE_OTHER": "Other",
+  "org.switch": "Switch organisation",
+  "nav.views": "Identity views"
 }
