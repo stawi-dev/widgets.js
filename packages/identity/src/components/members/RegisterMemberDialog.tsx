@@ -5,11 +5,9 @@ import { useT } from "../../hooks/use-t.js";
 import { Dialog } from "../Dialog.js";
 import { Field } from "../Field.js";
 import { platformRoleOf } from "./labels.js";
-import { expandBundleProperties, diffGrants } from "../../permissions/model.js";
-import type {
-  MemberProperties,
-  PermissionModel,
-} from "../../permissions/types.js";
+import { BundleSelect, initialBundles, withBundles } from "./BundleSelect.js";
+import { diffGrants } from "../../permissions/model.js";
+import type { MemberProperties } from "../../permissions/types.js";
 import {
   applyGrantPlans,
   nonEmptyPlans,
@@ -31,54 +29,6 @@ interface RegisterMemberDialogProps {
   onClose: () => void;
   /** Called after the record is written; `issues` lists grants that failed. */
   onSaved: (result: { member: WorkforceMember; issues: GrantIssue[] }) => void;
-}
-
-/**
- * The bundle keys a dialog opens with: the member's recorded bundles, or —
- * for a new member — the first bundle each namespace offers. An existing
- * member with no bundle keeps none until an admin picks one.
- */
-function initialBundles(
-  model: PermissionModel | undefined,
-  member: WorkforceMember | null,
-): Record<string, string> {
-  const recorded =
-    (member?.properties as MemberProperties | undefined)?.access_bundle ?? {};
-  const out: Record<string, string> = {};
-  for (const ns of model?.namespaces ?? []) {
-    out[ns.namespace] =
-      recorded[ns.namespace] ?? (member ? "" : (ns.bundles[0]?.key ?? ""));
-  }
-  return out;
-}
-
-/**
- * Applies the chosen bundles to a member's properties. A namespace left on
- * "no bundle" has its bundle, grants and revokes dropped; every other
- * property — including namespaces outside the model — is carried through.
- */
-function withBundles(
-  model: PermissionModel,
-  selection: Record<string, string>,
-  existing: MemberProperties,
-): MemberProperties {
-  const cleared: MemberProperties = {
-    ...existing,
-    access_bundle: { ...(existing.access_bundle ?? {}) },
-    permission_grants: { ...(existing.permission_grants ?? {}) },
-    permission_revokes: { ...(existing.permission_revokes ?? {}) },
-  };
-  const chosen: Record<string, string> = {};
-  for (const [ns, key] of Object.entries(selection)) {
-    if (key) {
-      chosen[ns] = key;
-      continue;
-    }
-    delete cleared.access_bundle?.[ns];
-    delete cleared.permission_grants?.[ns];
-    delete cleared.permission_revokes?.[ns];
-  }
-  return expandBundleProperties(model, chosen, cleared);
 }
 
 /**
@@ -161,21 +111,26 @@ export function RegisterMemberDialog({
           else delete properties.platform_role;
         }
 
-        // An active member's tenancy grants must match the record, so the
-        // difference is applied before it is persisted; a partial failure
-        // still saves and is reported for retry.
+        // The tenancy grants an active member's record asks for.
+        const plans =
+          permissionModel && state === "ACTIVE"
+            ? nonEmptyPlans(
+                permissionModel.namespaces.map((ns) => ({
+                  namespace: ns.namespace,
+                  diff: diffGrants(existing, properties, ns.namespace),
+                })),
+              )
+            : [];
+
+        // Editing applies the difference before persisting: the record
+        // already exists, so a save that fails afterwards leaves an active
+        // member whose grants merely ran ahead. Registering must save
+        // first — granting before the record exists would leave live
+        // permissions attached to a member nobody created. Either way a
+        // partial failure is reported for retry rather than thrown.
         let issues: GrantIssue[] = [];
-        if (permissionModel && state === "ACTIVE") {
-          issues = await applyGrantPlans(
-            tenancy,
-            resolvedProfileId,
-            nonEmptyPlans(
-              permissionModel.namespaces.map((ns) => ({
-                namespace: ns.namespace,
-                diff: diffGrants(existing, properties, ns.namespace),
-              })),
-            ),
-          );
+        if (isEdit && plans.length > 0) {
+          issues = await applyGrantPlans(tenancy, resolvedProfileId, plans);
         }
 
         const payload: Partial<WorkforceMember> = {
@@ -191,6 +146,9 @@ export function RegisterMemberDialog({
         }
 
         const saved = await client.workforceMemberSave(payload);
+        if (!isEdit && plans.length > 0) {
+          issues = await applyGrantPlans(tenancy, resolvedProfileId, plans);
+        }
         onMemberChange?.({
           member: saved,
           change: isEdit ? "updated" : "created",
@@ -332,37 +290,15 @@ export function RegisterMemberDialog({
           </Field>
         )}
 
-        {permissionModel?.namespaces.map((ns) => (
-          <Field
-            key={ns.namespace}
-            label={
-              permissionModel.namespaces.length > 1
-                ? `${t("members.field.accessBundle")}: ${ns.label}`
-                : t("members.field.accessBundle")
+        {permissionModel && (
+          <BundleSelect
+            model={permissionModel}
+            value={bundles}
+            onChange={(namespace, key) =>
+              setBundles((prev) => ({ ...prev, [namespace]: key }))
             }
-          >
-            {(props) => (
-              <select
-                {...props}
-                className="aiw-select"
-                value={bundles[ns.namespace] ?? ""}
-                onChange={(e) =>
-                  setBundles((prev) => ({
-                    ...prev,
-                    [ns.namespace]: e.target.value,
-                  }))
-                }
-              >
-                <option value="">{t("members.bundle.none")}</option>
-                {ns.bundles.map((b) => (
-                  <option key={b.key} value={b.key}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-        ))}
+          />
+        )}
 
         {!permissionModel && features.platformRoles && (
           <Field label={t("members.field.platformRole")}>

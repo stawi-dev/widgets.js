@@ -137,6 +137,21 @@ function renderMembers(options: Options) {
   return { client, tenancy };
 }
 
+/** Opens the dialog and registers `p7` as an ACTIVE member on the default bundle. */
+async function registerActiveMember() {
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Register member" }),
+  );
+  fireEvent.click(screen.getByLabelText("Profile"));
+  fireEvent.change(screen.getByLabelText(/Profile id/), {
+    target: { value: "p7" },
+  });
+  fireEvent.change(screen.getByLabelText(/Initial state/), {
+    target: { value: "ACTIVE" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Register" }));
+}
+
 describe("members with access bundles", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -365,6 +380,61 @@ describe("members with access bundles", () => {
     // Grants wait for activation.
     expect(tenancy.grantPermission).not.toHaveBeenCalled();
     expect(changes.map((c) => c.change)).toEqual(["created"]);
+  });
+
+  it("registers a member directly as ACTIVE: saves first, then grants", async () => {
+    const calls: string[] = [];
+    const save = vi.fn(async (m: Partial<WorkforceMember>) => {
+      calls.push(`save:${m.state}`);
+      return member({ state: "ACTIVE" });
+    });
+    const tenancy = makeTenancy({
+      grantPermission: vi.fn(async (p) => {
+        calls.push(`grant:${p.permission}`);
+      }),
+    });
+    renderMembers({
+      client: makeClient({ workforceMemberSave: save }),
+      tenancy,
+    });
+
+    await registerActiveMember();
+
+    await waitFor(() => expect(calls.length).toBe(4));
+    // The record exists before any permission is attached to the profile.
+    expect(calls).toEqual([
+      "save:ACTIVE",
+      "grant:assign",
+      "grant:quotes_create",
+      "grant:quotes_view",
+    ]);
+    expect(tenancy.grantPermission).toHaveBeenCalledWith({
+      namespace: NS,
+      permission: "assign",
+      profileId: "p7",
+    });
+  });
+
+  it("keeps a directly registered member when a grant fails", async () => {
+    const save = vi.fn().mockResolvedValue(member({ state: "ACTIVE" }));
+    const tenancy = makeTenancy({
+      grantPermission: vi.fn(async (p: { permission: string }) => {
+        if (p.permission === "quotes_view") throw new Error("keto down");
+      }),
+    });
+    renderMembers({
+      client: makeClient({ workforceMemberSave: save }),
+      tenancy,
+    });
+
+    await registerActiveMember();
+
+    expect(await screen.findByText(/quotes_view: keto down/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry grants" })).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ profileId: "p7", state: "ACTIVE" }),
+    );
   });
 
   it("clears a member's bundle when no bundle is chosen", async () => {
