@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { applyTokens, tokenToCssVar } from "../themes/apply.js";
+import { tokenDeclarations, tokenToCssVar } from "../themes/apply.js";
 import { claudeDark, claudeLight, highContrast } from "../themes/presets.js";
+import { widgetStyles, widgetStylesFor } from "../styles/styles.js";
 import type { IdentityWidgetTokens } from "../themes/types.js";
 
 describe("tokenToCssVar", () => {
@@ -46,64 +47,100 @@ describe("tokenToCssVar", () => {
   });
 });
 
-describe("applyTokens", () => {
-  function el() {
-    return document.createElement("div");
-  }
-
-  it("writes known tokens as CSS custom properties", () => {
-    const node = el();
-    applyTokens(node, {
-      colorPrimary: "#123456",
-      radius: "12px",
-      zIndexDialog: 42,
-      tableStripe: "rgba(0,0,0,0.04)",
-    });
-    expect(node.style.getPropertyValue("--aiw-primary")).toBe("#123456");
-    expect(node.style.getPropertyValue("--aiw-radius")).toBe("12px");
-    expect(node.style.getPropertyValue("--aiw-z-dialog")).toBe("42");
-    expect(node.style.getPropertyValue("--aiw-table-stripe")).toBe(
-      "rgba(0,0,0,0.04)",
+describe("tokenDeclarations", () => {
+  it("renders known tokens as CSS custom properties", () => {
+    expect(
+      tokenDeclarations({
+        colorPrimary: "#123456",
+        radius: "12px",
+        zIndexDialog: 42,
+        tableStripe: "rgba(0,0,0,0.04)",
+      }),
+    ).toBe(
+      "--aiw-primary: #123456;--aiw-radius: 12px;--aiw-z-dialog: 42;" +
+        "--aiw-table-stripe: rgba(0,0,0,0.04);",
     );
   });
 
-  it("ignores malformed sizes so hosts cannot inject CSS through a length", () => {
-    const node = el();
-    applyTokens(node, {
-      radius: "12px; color: red",
-      radiusSm: "not-a-size",
-      fontSizeBase: "14px",
-    });
-    expect(node.style.getPropertyValue("--aiw-radius")).toBe("");
-    expect(node.style.getPropertyValue("--aiw-radius-sm")).toBe("");
-    expect(node.style.getPropertyValue("--aiw-font-size-base")).toBe("14px");
-  });
-
-  it("ignores non-numeric z-indexes and unknown keys", () => {
-    const node = el();
-    applyTokens(node, {
-      zIndexDialog: "high" as unknown as number,
-      nope: "value",
-    } as IdentityWidgetTokens);
-    expect(node.style.getPropertyValue("--aiw-z-dialog")).toBe("");
-    expect(node.getAttribute("style")).toBeNull();
-  });
-
-  it("skips undefined values", () => {
-    const node = el();
-    applyTokens(node, { colorPrimary: undefined, colorBg: "#fff" });
-    expect(node.style.getPropertyValue("--aiw-primary")).toBe("");
-    expect(node.style.getPropertyValue("--aiw-bg")).toBe("#fff");
-  });
-
-  it("applies the shipped presets", () => {
-    for (const preset of [claudeLight, claudeDark, highContrast]) {
-      const node = el();
-      applyTokens(node, preset);
-      expect(node.style.getPropertyValue("--aiw-bg")).toBe(preset.colorBg);
-      expect(node.style.getPropertyValue("--aiw-primary")).toBe(
-        preset.colorPrimary,
-      );
+  it("drops values that would break out of the declaration", () => {
+    // Each of these would inject a rule of its own if interpolated raw.
+    const attacks: IdentityWidgetTokens[] = [
+      { radius: "1px} :host{display:none" },
+      { colorPrimary: "red; background: url(https://evil.test/x)" },
+      { colorBg: "#fff} .aiw-table{display:none" },
+      { fontBody: "Inter /* comment */" },
+      { colorSurface: "url(https://evil.test/x.png)" },
+      { colorText: "<script>" },
+    ];
+    for (const tokens of attacks) {
+      expect(tokenDeclarations(tokens as Record<string, unknown>)).toBe("");
     }
+  });
+
+  it("keeps well-formed colours, fonts and lengths", () => {
+    expect(
+      tokenDeclarations({
+        colorPrimary: "rgba(37, 99, 235, 0.9)",
+        fontBody: "Inter, system-ui, sans-serif",
+        radius: "0.75rem",
+        radiusSm: "calc(100% - 2px)",
+      }),
+    ).toBe(
+      "--aiw-primary: rgba(37, 99, 235, 0.9);" +
+        "--aiw-font-body: Inter, system-ui, sans-serif;" +
+        "--aiw-radius: 0.75rem;" +
+        "--aiw-radius-sm: calc(100% - 2px);",
+    );
+  });
+
+  it("ignores malformed sizes, bad z-indexes, unknown keys and blanks", () => {
+    expect(
+      tokenDeclarations({
+        radius: "not-a-size",
+        zIndexDialog: "high",
+        nope: "value",
+        colorBg: "   ",
+        colorText: undefined,
+        colorSurface: null,
+      } as unknown as Record<string, unknown>),
+    ).toBe("");
+  });
+
+  it("renders the shipped presets", () => {
+    for (const preset of [claudeLight, claudeDark, highContrast]) {
+      const css = tokenDeclarations(preset as Record<string, unknown>);
+      expect(css).toContain(`--aiw-bg: ${preset.colorBg};`);
+      expect(css).toContain(`--aiw-primary: ${preset.colorPrimary};`);
+    }
+  });
+});
+
+describe("widgetStylesFor", () => {
+  it("produces a light-DOM sheet with no :host selectors", () => {
+    const css = widgetStylesFor(".aiw-root");
+    expect(css).not.toContain(":host");
+    expect(widgetStyles).toContain(":host");
+  });
+
+  it("binds the token blocks to the given selector", () => {
+    const css = widgetStylesFor("#admin .widget");
+    expect(css).toContain("#admin .widget {");
+    expect(css).toContain("--aiw-bg: #ffffff;");
+    expect(css).toContain('#admin .widget[data-theme="dark"] {');
+    expect(css).toContain('#admin .widget[data-theme="auto"] {');
+    expect(css).toContain("prefers-color-scheme: dark");
+    // The dark palette must be defined under both dark selectors.
+    expect(css.match(/--aiw-bg: #1c1b1a;/g)?.length).toBe(2);
+  });
+
+  it("defaults to .aiw-root, the class the widget root renders", () => {
+    expect(widgetStylesFor()).toBe(widgetStylesFor(".aiw-root"));
+    expect(widgetStylesFor()).toContain(".aiw-root {");
+  });
+
+  it("scopes the reset so it cannot restyle the host page", () => {
+    const css = widgetStylesFor(".aiw-root");
+    expect(css).toContain(".aiw-root *, .aiw-root *::before");
+    expect(css).not.toMatch(/^\*, \*::before/m);
   });
 });

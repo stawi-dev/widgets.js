@@ -111,6 +111,23 @@ describe("UnitsView", () => {
     ).toBe("1");
   });
 
+  it("renders every unit even when the parent chain is a cycle", async () => {
+    // A -> B -> A: neither is a root, so a naive walk would drop both.
+    const client = makeClient({
+      orgUnitSearch: vi
+        .fn()
+        .mockResolvedValue([
+          unit({ id: "u1", name: "Alpha", code: "ALP", parentId: "u2" }),
+          unit({ id: "u2", name: "Beta", code: "BET", parentId: "u1" }),
+        ]),
+    });
+    const { container } = renderUnits(client);
+
+    await screen.findByText("Alpha");
+    expect(screen.getByText("Beta")).toBeTruthy();
+    expect(container.querySelectorAll("tbody tr").length).toBe(2);
+  });
+
   it("shows an empty state with a create action", async () => {
     const client = makeClient();
     renderUnits(client);

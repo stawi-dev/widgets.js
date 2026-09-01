@@ -1,5 +1,3 @@
-import type { IdentityWidgetTokens } from "./types.js";
-
 const SIZE_RE = /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$|^calc\(.+\)$/;
 
 /**
@@ -44,10 +42,15 @@ export function tokenToCssVar(key: string): string | undefined {
   return MAP[key];
 }
 
-function isSize(v: unknown): v is string {
-  return typeof v === "string" && SIZE_RE.test(v);
-}
+/**
+ * Characters that would let a host-supplied token value escape its
+ * declaration and inject rules of its own — `radius: "1px} :host{display:none"`
+ * is the shape of the attack. `url(` is rejected too, so a token can never
+ * pull in a remote resource.
+ */
+const UNSAFE_RE = /[;{}<>]|\/\*|\*\/|url\(/i;
 
+/** Token keys whose value must be a CSS length. */
 const SIZE_KEYS = new Set([
   "radius",
   "radiusSm",
@@ -59,19 +62,29 @@ const SIZE_KEYS = new Set([
 ]);
 
 /**
- * Writes `tokens` onto `el` as CSS custom properties. Unknown keys, blank
- * values, malformed sizes and non-numeric z-indexes are skipped so a
- * host-supplied object can never inject arbitrary CSS through a length.
+ * Validates one token, returning the value to write or `null` to drop it.
+ * Unknown keys, blank and unsafe values, malformed sizes and non-numeric
+ * z-indexes are all rejected.
  */
-export function applyTokens(
-  el: HTMLElement,
-  tokens: IdentityWidgetTokens,
-): void {
-  for (const [k, v] of Object.entries(tokens)) {
-    const cssVar = MAP[k];
-    if (!cssVar || v === undefined || v === null) continue;
-    if (SIZE_KEYS.has(k) && !isSize(v)) continue;
-    if (k.startsWith("zIndex") && !Number.isFinite(Number(v))) continue;
-    el.style.setProperty(cssVar, String(v));
+export function safeTokenValue(key: string, value: unknown): string | null {
+  if (!MAP[key] || value === undefined || value === null) return null;
+  const text = String(value).trim();
+  if (!text || UNSAFE_RE.test(text)) return null;
+  if (SIZE_KEYS.has(key) && !SIZE_RE.test(text)) return null;
+  if (key.startsWith("zIndex") && !Number.isFinite(Number(text))) return null;
+  return text;
+}
+
+/**
+ * Renders `tokens` as CSS declarations (`--aiw-x: y;`), dropping anything
+ * `safeTokenValue` rejects. This is the only path host tokens take into
+ * stylesheet text, in both the shadow and light-DOM builds.
+ */
+export function tokenDeclarations(tokens: Record<string, unknown>): string {
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(tokens)) {
+    const safe = safeTokenValue(key, value);
+    if (safe !== null) out.push(`${MAP[key]!}: ${safe};`);
   }
+  return out.join("");
 }

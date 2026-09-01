@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { AuthRuntime } from "@stawi/auth-runtime";
 import { IdentityWidgetRoot } from "../src/components/IdentityWidgetRoot.js";
-import { widgetStyles } from "../src/styles/styles.js";
+import { widgetStylesFor } from "../src/styles/styles.js";
 import {
   commerceVocabulary,
   fintechVocabulary,
@@ -11,11 +11,9 @@ import {
 } from "../src/vocabulary/index.js";
 import type { IdentityVocabulary } from "../src/vocabulary/index.js";
 
-// The widget normally lives in a shadow root. Rewrite `:host` to a class so
-// the same stylesheet applies to the playground's light DOM wrapper.
-const playgroundCss = widgetStyles
-  .replace(/:host\(([^)]+)\)/g, (_m, inner: string) => `.aiw-shell${inner}`)
-  .replace(/:host/g, ".aiw-shell");
+// The widget normally lives in a shadow root; the playground renders it into
+// the light DOM, so it takes the light-DOM build of the same stylesheet.
+const playgroundCss = widgetStylesFor();
 
 const PRESETS: Record<string, IdentityVocabulary> = {
   general: generalVocabulary,
@@ -112,11 +110,7 @@ function Playground() {
           </label>
         </div>
 
-        <div
-          className="aiw-shell"
-          data-theme={theme}
-          style={{ border: "1px solid #ddd", borderRadius: 12 }}
-        >
+        <div style={{ border: "1px solid #ddd", borderRadius: 12 }}>
           <IdentityWidgetRoot
             key={key}
             runtime={runtime}

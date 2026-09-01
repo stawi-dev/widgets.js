@@ -94,13 +94,26 @@ import { IdentityWidgetRoot } from "@stawi/identity";
 ```
 
 `IdentityWidgetRoot` renders into your DOM with no shadow root, so your own
-stylesheet applies. Import the widget stylesheet yourself if you want the
-shipped look:
+stylesheet applies. It renders a root element carrying the `aiw-root` class
+and a `data-theme` attribute. To get the shipped look, inject the light-DOM
+build of the stylesheet once — `widgetStylesFor()` scopes the design tokens
+to that selector, so nothing leaks onto the rest of your page:
 
-```ts
-import { widgetStyles } from "@stawi/identity";
-// inject once, e.g. into a <style> tag you render
+```tsx
+import { IdentityWidgetRoot, widgetStylesFor } from "@stawi/identity";
+
+const css = widgetStylesFor(); // defaults to ".aiw-root"
+
+<>
+  <style>{css}</style>
+  <IdentityWidgetRoot runtime={runtime} apiBaseUrl={apiBaseUrl} theme="auto" />
+</>;
 ```
+
+Pass your own selector if you scope the widget further, e.g.
+`widgetStylesFor("#admin .aiw-root")`. The shadow-DOM build used by
+`mount()` is exported as `widgetStyles`; it puts the tokens on `:host` and
+is not usable in the light DOM.
 
 ### Props
 

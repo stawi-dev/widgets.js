@@ -1,6 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import * as identity from "../index.js";
-import * as bootstrap from "../bootstrap.js";
 
 describe("package entry points", () => {
   it("exports the data layer", () => {
@@ -14,11 +13,22 @@ describe("package entry points", () => {
     expect(typeof identity.mount).toBe("function");
     expect(typeof identity.IdentityWidgetRoot).toBe("function");
     expect(typeof identity.mergeVocabulary).toBe("function");
+    expect(typeof identity.widgetStylesFor).toBe("function");
     expect(identity.commerceVocabulary.teamTypes.length).toBeGreaterThan(0);
     expect(identity.claudeDark.colorPrimary).toBeTruthy();
   });
 
-  it("re-exports the whole public API from the IIFE bootstrap", () => {
+  it("re-exports the whole public API from the IIFE bootstrap", async () => {
+    // Importing bootstrap runs its auto-mount, which warns because there is
+    // no currentScript under Vitest. That is the documented behaviour, so
+    // swallow it rather than letting it litter the test output.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bootstrap = await import("../bootstrap.js");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("currentScript is null"),
+    );
+    warn.mockRestore();
+
     // window.StawiIdentity must carry everything the ESM entry does.
     for (const key of Object.keys(identity)) {
       expect(Object.keys(bootstrap)).toContain(key);

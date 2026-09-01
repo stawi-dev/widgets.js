@@ -1,5 +1,5 @@
 /**
- * All styling for the identity widget, injected once into the shadow root.
+ * All styling for the identity widget.
  *
  * The `--aiw-*` custom properties are the same names `@stawi/profile` uses,
  * so one host token object themes both widgets. Unlike profile, the identity
@@ -10,10 +10,15 @@
  *
  * No fonts are inlined or fetched: the defaults are the platform system
  * stacks. Hosts override them via the `fontHeading` / `fontBody` tokens.
+ *
+ * Two builds are produced from one source: {@link widgetStyles} scopes the
+ * token block to `:host` for the shadow-DOM island, and
+ * {@link widgetStylesFor} scopes it to a plain selector for React hosts that
+ * render into the light DOM.
  */
-export const widgetStyles = `
-:host {
-  color-scheme: light dark;
+
+/** Default (light) token values. */
+const TOKENS_LIGHT = `
   --aiw-bg: #ffffff;
   --aiw-surface: #f7f7f6;
   --aiw-text: #1f1f1f;
@@ -37,18 +42,10 @@ export const widgetStyles = `
   --aiw-font-weight-body: 400;
   --aiw-z-dialog: 10001;
   --aiw-focus-ring: 2px solid var(--aiw-primary);
+`;
 
-  font-family: var(--aiw-font-body);
-  font-size: var(--aiw-font-size-base);
-  font-weight: var(--aiw-font-weight-body);
-  line-height: 1.5;
-  color: var(--aiw-text);
-  background: var(--aiw-bg);
-  display: block;
-  position: relative;
-}
-
-:host([data-theme="dark"]) {
+/** Values that replace the light ones under a dark theme. */
+const TOKENS_DARK = `
   --aiw-bg: #1c1b1a;
   --aiw-surface: #262523;
   --aiw-text: #e8e6e1;
@@ -62,40 +59,26 @@ export const widgetStyles = `
   --aiw-danger: #e06a6a;
   --aiw-danger-hover: #ef8585;
   --aiw-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.30);
-}
+`;
 
-@media (prefers-color-scheme: dark) {
-  :host([data-theme="auto"]) {
-    --aiw-bg: #1c1b1a;
-    --aiw-surface: #262523;
-    --aiw-text: #e8e6e1;
-    --aiw-text-secondary: #a09d97;
-    --aiw-border: #3a3836;
-    --aiw-muted: rgba(255,255,255,0.07);
-    --aiw-muted-strong: rgba(255,255,255,0.13);
-    --aiw-table-stripe: rgba(255,255,255,0.035);
-    --aiw-primary: #6d9dfb;
-    --aiw-primary-hover: #8db3fc;
-    --aiw-danger: #e06a6a;
-    --aiw-danger-hover: #ef8585;
-    --aiw-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.30);
-  }
-}
+/** Typography and box model applied to whichever element owns the tokens. */
+const ROOT_LAYOUT = `
+  color-scheme: light dark;
+  font-family: var(--aiw-font-body);
+  font-size: var(--aiw-font-size-base);
+  font-weight: var(--aiw-font-weight-body);
+  line-height: 1.5;
+  color: var(--aiw-text);
+  background: var(--aiw-bg);
+  display: block;
+  position: relative;
+`;
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-:host *:focus-visible {
-  outline: var(--aiw-focus-ring);
-  outline-offset: 2px;
-}
-
+/** Everything that is already class-scoped and identical in both builds. */
+const BASE_RULES = `
 /* --- Shell --- */
 
-.aiw-root {
+.aiw-views {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -635,6 +618,14 @@ export const widgetStyles = `
   color: var(--aiw-text-secondary);
 }
 
+.aiw-empty-state-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
 .aiw-loading-rows {
   display: flex;
   flex-direction: column;
@@ -719,3 +710,51 @@ export const widgetStyles = `
   }
 }
 `;
+
+/**
+ * Builds the stylesheet with the token blocks bound to `root`. The reset and
+ * focus rules are scoped to `root` too, so the light-DOM build can never
+ * restyle the rest of the host page.
+ */
+function buildStyles(root: string, dark: string, auto: string): string {
+  return `
+${root} {${TOKENS_LIGHT}${ROOT_LAYOUT}}
+
+${dark} {${TOKENS_DARK}}
+
+@media (prefers-color-scheme: dark) {
+  ${auto} {${TOKENS_DARK}}
+}
+
+${root} *, ${root} *::before, ${root} *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+${root} *:focus-visible {
+  outline: var(--aiw-focus-ring);
+  outline-offset: 2px;
+}
+${BASE_RULES}`;
+}
+
+/** Stylesheet for the shadow-DOM island, with tokens on `:host`. */
+export const widgetStyles = buildStyles(
+  ":host",
+  ':host([data-theme="dark"])',
+  ':host([data-theme="auto"])',
+);
+
+/**
+ * Stylesheet for React hosts rendering `<IdentityWidgetRoot />` into the
+ * light DOM. `rootSelector` must match the widget's root element, which
+ * carries the `aiw-root` class and a `data-theme` attribute.
+ */
+export function widgetStylesFor(rootSelector = ".aiw-root"): string {
+  return buildStyles(
+    rootSelector,
+    `${rootSelector}[data-theme="dark"]`,
+    `${rootSelector}[data-theme="auto"]`,
+  );
+}

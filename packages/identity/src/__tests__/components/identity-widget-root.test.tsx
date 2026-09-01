@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { AuthRuntime } from "@stawi/auth-runtime";
 import {
   IdentityWidgetRoot,
@@ -10,6 +10,13 @@ import type { ProfileResolver } from "../../services/profile-resolver.js";
 import type { Organization } from "../../types.js";
 
 const ORG: Organization = { id: "o1", name: "Acme Imports", code: "ACME" };
+
+/** Let a newly-shown screen finish its loads inside act(). */
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
 
 const client: IdentityClient = {
   organizationSearch: vi.fn().mockResolvedValue([ORG]),
@@ -166,6 +173,8 @@ describe("IdentityWidgetRoot", () => {
     expect(
       screen.getByRole("tab", { name: "Roles" }).getAttribute("aria-selected"),
     ).toBe("true");
+
+    await settle();
   });
 
   it("keeps only the selected tab in the tab order", async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { widgetStyles } from "./styles/styles.js";
 import type { IdentityWidgetThemedTokens } from "./themes/types.js";
-import { tokenToCssVar } from "./themes/apply.js";
+import { tokenDeclarations } from "./themes/apply.js";
 
 interface ShadowStyleProviderProps {
   shadowRoot: ShadowRoot;
@@ -11,16 +11,14 @@ interface ShadowStyleProviderProps {
   children: ReactNode;
 }
 
-/** Renders a `selector{...}` block for the tokens it recognises. */
+/**
+ * Renders a `selector{...}` block for the tokens it recognises. Values go
+ * through `tokenDeclarations`, so a host token can never break out of its
+ * declaration and inject rules of its own.
+ */
 function block(selector: string, tokens: Record<string, unknown>): string {
-  const lines: string[] = [];
-  for (const [k, v] of Object.entries(tokens)) {
-    if (v === undefined || v === null) continue;
-    const cv = tokenToCssVar(k);
-    if (!cv) continue;
-    lines.push(`${cv}: ${String(v)};`);
-  }
-  return lines.length ? `${selector}{${lines.join("")}}` : "";
+  const decls = tokenDeclarations(tokens);
+  return decls ? `${selector}{${decls}}` : "";
 }
 
 /**

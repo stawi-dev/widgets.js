@@ -103,8 +103,12 @@ export function mount(options: MountOptions): MountHandle {
 }
 
 export { IdentityWidgetRoot } from "./components/IdentityWidgetRoot.js";
-/** The widget stylesheet, for React hosts rendering without a shadow root. */
-export { widgetStyles } from "./styles/styles.js";
+/**
+ * `widgetStyles` is the shadow-DOM build (tokens on `:host`).
+ * `widgetStylesFor()` is the light-DOM build for React hosts rendering
+ * `<IdentityWidgetRoot />` without a shadow root.
+ */
+export { widgetStyles, widgetStylesFor } from "./styles/styles.js";
 export type {
   IdentityWidgetProps,
   IdentityView,

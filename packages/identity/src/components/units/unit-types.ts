@@ -20,6 +20,9 @@ export interface UnitNode {
  * Flattens `units` into depth-first display order so a child always follows
  * its parent. Units whose parent is missing from the page (or absent) are
  * roots, which keeps a partial page renderable rather than dropping rows.
+ * A parent cycle (A→B→A) has no root at all, so anything the walk did not
+ * reach is appended at depth 0 in its original order — every unit the
+ * service returned is always rendered.
  */
 export function flattenUnitTree(units: readonly OrgUnit[]): UnitNode[] {
   const byParent = new Map<string, OrgUnit[]>();
@@ -49,5 +52,8 @@ export function flattenUnitTree(units: readonly OrgUnit[]): UnitNode[] {
   }
 
   for (const root of roots) walk(root, 0);
+  for (const unit of units) {
+    if (!seen.has(unit.id)) walk(unit, 0);
+  }
   return out;
 }

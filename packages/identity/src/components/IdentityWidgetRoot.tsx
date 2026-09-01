@@ -43,6 +43,7 @@ export function IdentityWidgetRoot(props: IdentityWidgetProps) {
     apiBaseUrl,
     logoutRedirectUri,
     runtime,
+    theme,
     locale,
     onError,
     onAuthStateChange,
@@ -60,22 +61,28 @@ export function IdentityWidgetRoot(props: IdentityWidgetProps) {
   );
 
   return (
-    <ErrorBoundary onError={onError}>
-      <HooksContext.Provider value={hooks}>
-        <AuthProvider
-          clientId={clientId ?? installationId ?? ""}
-          installationId={installationId}
-          idpBaseUrl={idpBaseUrl}
-          apiBaseUrl={apiBaseUrl}
-          logoutRedirectUri={logoutRedirectUri}
-          runtime={runtime}
-        >
-          <AuthGate>
-            <IdentityShell {...props} />
-          </AuthGate>
-        </AuthProvider>
-      </HooksContext.Provider>
-    </ErrorBoundary>
+    // The root element owns the design tokens: `:host` supplies them in the
+    // shadow build, this element in the light-DOM build (see
+    // `widgetStylesFor`). It is rendered in both so the class and the
+    // `data-theme` hook are always where a host expects them.
+    <div className="aiw-root" data-theme={theme ?? "auto"}>
+      <ErrorBoundary onError={onError}>
+        <HooksContext.Provider value={hooks}>
+          <AuthProvider
+            clientId={clientId ?? installationId ?? ""}
+            installationId={installationId}
+            idpBaseUrl={idpBaseUrl}
+            apiBaseUrl={apiBaseUrl}
+            logoutRedirectUri={logoutRedirectUri}
+            runtime={runtime}
+          >
+            <AuthGate>
+              <IdentityShell {...props} />
+            </AuthGate>
+          </AuthProvider>
+        </HooksContext.Provider>
+      </ErrorBoundary>
+    </div>
   );
 }
 
@@ -222,7 +229,7 @@ function IdentityTabs({ initialView, pinned }: IdentityTabsProps) {
   );
 
   return (
-    <div className="aiw-root">
+    <div className="aiw-views">
       <div className="aiw-header">
         <div className="aiw-header-org">
           <span className="aiw-header-title">{organization?.name}</span>
