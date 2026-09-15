@@ -1,6 +1,4 @@
-"use client";
-
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload,
   FileText,
@@ -11,6 +9,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { FileUploadService } from "../services/fileUploadService";
+import { createAuthRuntime } from "@stawi/auth-runtime";
 import type {
   FileUploadProgress,
   UploadedFile,
@@ -35,6 +34,12 @@ export function FileUploadWidget({
   className = "",
   onError,
   onProgress,
+  runtime,
+  apiBaseUrl,
+  clientId,
+  installationId,
+  idpBaseUrl,
+  logoutRedirectUri,
 }: FileUploadWidgetProps) {
   const [files, setFiles] = useState<UploadedFile[]>(initialFiles);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -47,6 +52,35 @@ export function FileUploadWidget({
   >({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const serviceRef = useRef<FileUploadService | null>(null);
+  const runtimeRef = useRef<ReturnType<typeof createAuthRuntime> | null>(null);
+
+  // Initialize the upload service
+  useEffect(() => {
+    if (serviceRef.current) return;
+
+    let rt = runtime;
+    if (!rt && apiBaseUrl && installationId) {
+      rt = createAuthRuntime({
+        clientId: clientId ?? installationId,
+        installationId,
+        idpBaseUrl,
+        apiBaseUrl,
+        logoutRedirectUri,
+        scopes: ["openid", "profile", "offline_access", "files"],
+      });
+      runtimeRef.current = rt;
+    }
+    if (rt) {
+      serviceRef.current = FileUploadService.create(apiBaseUrl ?? "", rt);
+    }
+  }, [
+    runtime,
+    apiBaseUrl,
+    clientId,
+    installationId,
+    idpBaseUrl,
+    logoutRedirectUri,
+  ]);
 
   const notifyChange = useCallback(() => {
     onFilesChange(files);

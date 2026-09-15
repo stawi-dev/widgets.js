@@ -44,6 +44,13 @@ export interface FileUploadWidgetProps {
   className?: string;
   onError?: (error: Error, file: File) => void;
   onProgress?: (progress: FileUploadProgress, file: File) => void;
+  // Auth/runtime config for direct uploads
+  runtime?: AuthRuntime;
+  apiBaseUrl?: string;
+  clientId?: string;
+  installationId?: string;
+  idpBaseUrl?: string;
+  logoutRedirectUri?: string;
 }
 
 export interface MountOptions extends FileUploadWidgetProps {

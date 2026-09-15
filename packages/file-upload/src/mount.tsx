@@ -54,6 +54,12 @@ export function mount(options: MountOptions): MountHandle {
       className={options.className}
       onError={options.onError}
       onProgress={options.onProgress}
+      runtime={options.runtime}
+      apiBaseUrl={options.apiBaseUrl}
+      clientId={options.clientId}
+      installationId={options.installationId}
+      idpBaseUrl={options.idpBaseUrl}
+      logoutRedirectUri={options.logoutRedirectUri}
     />,
   );
 
